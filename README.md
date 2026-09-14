@@ -10,8 +10,8 @@ Prototype dashboard for the **acute stroke patient journey**, built around the
 
 | View | What it shows |
 |---|---|
-| **Live fast-track board** | Activations currently in the pathway: team acknowledgments (RAD / NEU / INR / ANES), location, current protocol step, time since the 99499 call, next time target and alert state. |
-| **Patient journey** | One activation end to end: interval tiles (activation → CT, → rt-PA, mCTA → INR call, → groin), a protocol-step timeline, the full event log with the responsible role, and the answer at each protocol decision. |
+| **Live fast-track board** | Activations currently in the pathway (team acknowledgments, location, protocol step, next target, alert) plus a ward board of admitted patients by phase with inpatient milestone chips. |
+| **Patient journey** | One activation end to end: a six-phase course-of-treatment strip (onset → hyperacute → acute care → rehabilitation → discharge → follow-up), hyperacute interval tiles and timeline, day-scale inpatient milestones and quality tiles, the full event log with the responsible role, and the answer at each protocol decision. |
 | **Protocol map** | The v1.0 flowchart redrawn as an interactive diagram; the selected patient's path is highlighted with T0+minutes at each node. |
 | **Cohort & KPIs** | Six months of simulated activations: median intervals, monthly activation-to-needle trend, pathway flow (CT finding → treatment → 90-day mRS), and protocol-adherence measures. |
 | **Data model** | The JSON record the console reads, the event codes, the time targets, and a suggested HIS / OMOP CDM mapping. |
@@ -22,7 +22,7 @@ It is a single file with no build step and no server.
 
 * Open `index.html` in any modern browser, **or**
 * Publish with GitHub Pages: *Settings → Pages → Deploy from a branch → `main` / root*.
-  The site will be at `https://SBmind.github.io/stroke-pathway-console/`.
+  The site will be at `https://<your-username>.github.io/<repo-name>/`.
 
 Fonts are loaded from Google Fonts; everything else is inline.
 

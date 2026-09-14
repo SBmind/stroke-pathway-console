@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="Prototype dashboard for the Siriraj Stroke Fast Track patient journey (simulated data)">
+<meta name="description" content="Prototype dashboard for the Siriraj Stroke Fast Track patient journey, from activation to 90-day follow-up (simulated data)">
 </head>
 <body>
 <title>Stroke Pathway Console</title>
@@ -85,6 +85,7 @@
   .tab[aria-selected="true"] { background: var(--surface); color: var(--ink); border-color: var(--line); box-shadow: var(--shadow); }
   .tab:focus-visible, button:focus-visible, select:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .view { display: grid; gap: 16px; }
+  .view > *, .grid > *, .panel { min-width: 0; }
 
   .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px 20px; }
   .panel h2 { margin: 0 0 4px; font-size: 14px; font-weight: 600; }
@@ -234,6 +235,24 @@
   .map-row { display: grid; grid-template-columns: 180px 1fr; gap: 8px; font-size: 12px; padding: 5px 0; border-bottom: 1px solid var(--line-2); }
   .map-row code { font-family: var(--mono); font-size: 11.5px; color: var(--accent); }
   .targets-tbl td:first-child { font-weight: 500; }
+  /* course-of-treatment phase strip */
+  .phases { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
+  @media (max-width: 900px) { .phases { grid-template-columns: repeat(3, 1fr); } }
+  @media (max-width: 560px) { .phases { grid-template-columns: 1fr 1fr; } }
+  .phase { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; background: var(--surface-2); display: grid; gap: 3px; min-width: 0; }
+  .phase.done { background: var(--good-soft); border-color: var(--good); }
+  .phase.current { background: var(--accent-soft); border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+  .phase.na { opacity: .5; }
+  .phase .pn { font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-3); font-weight: 600; }
+  .phase .pl { font-size: 12.5px; font-weight: 600; line-height: 1.2; }
+  .phase .ps { font-size: 11px; color: var(--ink-2); font-family: var(--mono); }
+  .phase .pst { font-size: 11px; font-weight: 600; }
+  .phase.done .pst { color: var(--good-ink); } .phase.current .pst { color: var(--accent); } .phase.pending .pst, .phase.na .pst { color: var(--ink-3); }
+  .milestones { display: flex; gap: 6px; flex-wrap: wrap; }
+  .ms { font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 4px; border: 1px solid var(--line); color: var(--ink-3); background: var(--surface); white-space: nowrap; }
+  .ms.done { border-color: var(--good); color: var(--good-ink); background: var(--good-soft); }
+  .ms.due { border-color: var(--warn); color: var(--warn-ink); background: var(--warn-soft); }
+  .ms.late { border-color: var(--crit); color: var(--crit-ink); background: var(--crit-soft); }
   .hidden-view { display: none; }
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 </style>
@@ -244,7 +263,7 @@
       <div class="brand-mark">SFT</div>
       <div>
         <h1>Stroke Pathway Console</h1>
-        <p class="sub">Siriraj Stroke Fast Track · activation protocol v1.0 (onset &lt; 24 h) · prototype on simulated data</p>
+        <p class="sub">Siriraj Stroke Fast Track · from the 99499 call to 90-day follow-up · prototype on simulated data</p>
       </div>
     </div>
     <div class="row">
@@ -284,6 +303,26 @@
       </div>
     </div>
     <p class="hint" style="margin:0">Click a row to open that patient's journey. Alerts turn amber at 80% of the target and red when it is exceeded. Targets are listed under Data model and are meant to be tuned by the stroke committee.</p>
+
+    <div class="panel">
+      <div class="row" style="justify-content: space-between;">
+        <div>
+          <h2>Admitted — course of treatment</h2>
+          <p class="hint" style="margin-bottom:0">Stroke patients still in hospital after the fast track: neuro ICU, stroke unit and rehabilitation. Milestone chips turn amber when due and red when overdue.</p>
+        </div>
+        <div class="board-summary" id="inpt-summary"></div>
+      </div>
+    </div>
+    <div class="panel" style="padding: 6px 8px;">
+      <div class="tbl-wrap">
+        <table id="inpt-table">
+          <thead><tr>
+            <th>Patient</th><th>Phase · location</th><th>Day</th><th>Treatment</th><th>NIHSS adm → 24 h</th><th>Milestones</th><th>Discharge plan</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
   </section>
 
   <!-- PATIENT JOURNEY -->
@@ -305,12 +344,25 @@
       </div>
     </div>
 
+    <div class="panel">
+      <h2>Course of treatment</h2>
+      <p class="hint">The whole journey, from onset to follow-up. Green phases are complete, the blue phase is where the patient is now.</p>
+      <div class="phases" id="phases"></div>
+    </div>
+
     <div class="grid g-4" id="pt-tiles"></div>
 
     <div class="panel">
       <h2>Fast-track timeline</h2>
       <p class="hint">Steps follow the activation protocol; diamonds are its decision points. Segments are colored by whether the interval met its target (blue = no time target). Dashed segments have not happened yet.</p>
       <div class="stepper" id="stepper"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Acute care, rehabilitation and follow-up</h2>
+      <p class="hint">Day-scale milestones after the hyperacute phase. Tiles show the inpatient quality measures; the timeline runs to the 90-day and 1-year visits.</p>
+      <div class="grid g-4" id="pt-course-tiles" style="margin-bottom:14px"></div>
+      <div class="stepper" id="stepper-course"></div>
     </div>
 
     <div class="grid g-main">
@@ -413,6 +465,21 @@
         <div id="measure-bars"></div>
       </div>
     </div>
+    <div class="grid g-2">
+      <div class="panel">
+        <h2>Length of each phase</h2>
+        <p class="hint">Median duration per phase of the course of treatment (discharged patients).</p>
+        <div id="phase-bars"></div>
+        <h2 style="margin-top:16px">Discharge destination</h2>
+        <p class="hint">Where patients went after the acute admission.</p>
+        <div id="dest-bars"></div>
+      </div>
+      <div class="panel">
+        <h2>Acute care, rehabilitation and follow-up measures</h2>
+        <p class="hint">Share of eligible patients meeting each inpatient and follow-up measure.</p>
+        <div id="course-measures"></div>
+      </div>
+    </div>
   </section>
 
   <!-- DATA MODEL -->
@@ -472,10 +539,41 @@
     ['ANGIO_ARRIVE', 'Patient arrives Angiosuite 72/2',         'Transfer',   'Transport / angio nurse'],
     ['GROIN',        'Groin puncture',                          'Treatment',  'INR'],
     ['RECAN',        'Recanalization',                          'Treatment',  'INR'],
-    ['STROKE_UNIT',  'Stroke unit admission',                   'Inpatient',  'Stroke unit'],
-    ['DISCHARGE',    'Discharge',                               'Inpatient',  'Ward']
+    ['ICU_ADMIT',    'Neuro ICU admission (post-procedure)',    'Acute care', 'Neuro ICU'],
+    ['STROKE_UNIT',  'Stroke unit admission',                   'Acute care', 'Stroke unit'],
+    ['CT_24H',       'Follow-up CT at 24 h',                    'Acute care', 'Radiologist'],
+    ['NIHSS_24H',    'NIHSS at 24 h',                           'Acute care', 'Stroke nurse'],
+    ['DYSPHAGIA',    'Dysphagia screen',                        'Acute care', 'Stroke nurse'],
+    ['ANTITHROMBOTIC','Antithrombotic started',                 'Acute care', 'Neurologist'],
+    ['STATIN',       'High-intensity statin started',           'Acute care', 'Neurologist'],
+    ['ETIOLOGY',     'Etiology work-up (echo · carotid · Holter)','Acute care','Neurologist'],
+    ['COMPLICATION', 'Complication recorded',                   'Acute care', 'Ward team'],
+    ['ANTICOAG',     'Anticoagulation started (AF)',            'Acute care', 'Neurologist'],
+    ['REHAB_ASSESS', 'Rehabilitation assessment',               'Rehabilitation', 'Rehab medicine'],
+    ['REHAB_START',  'Rehabilitation therapy started',          'Rehabilitation', 'PT / OT / SLP'],
+    ['DISCHARGE_PLAN','Discharge planning meeting',             'Discharge',  'Case manager'],
+    ['DISCHARGE',    'Discharge',                               'Discharge',  'Ward'],
+    ['FU_90D',       '90-day follow-up (mRS)',                  'Follow-up',  'Stroke clinic / phone'],
+    ['FU_1Y',        '1-year follow-up',                        'Follow-up',  'Stroke clinic']
   ];
   const EV = Object.fromEntries(EVENTS.map(e => [e[0], { label: e[1], phase: e[2], who: e[3] }]));
+
+  // Course-of-treatment phases (the journey does not stop at the angiosuite)
+  const PHASES = [
+    { id: 'onset',      label: 'Onset & activation',   from: 'ONSET',        phases: ['Onset', 'Activation'] },
+    { id: 'hyperacute', label: 'Hyperacute fast track', from: 'ACTIVATION',   phases: ['Team', 'Assessment', 'Imaging', 'Decision', 'Call', 'Treatment', 'Transfer'] },
+    { id: 'acute',      label: 'Acute stroke care',    from: 'STROKE_UNIT',  phases: ['Acute care'] },
+    { id: 'rehab',      label: 'Rehabilitation',       from: 'REHAB_ASSESS', phases: ['Rehabilitation'] },
+    { id: 'discharge',  label: 'Discharge & transition', from: 'DISCHARGE_PLAN', phases: ['Discharge'] },
+    { id: 'followup',   label: 'Follow-up',            from: 'FU_90D',       phases: ['Follow-up'] }
+  ];
+  const COURSE_TARGETS = {
+    dysphagia:    { hours: 24, label: 'Dysphagia screen before oral intake', note: '≤ 24 h from stroke unit admission' },
+    antithrombotic:{ hours: 48, label: 'Antithrombotic started', note: '≤ 48 h (24 h after rt-PA); ischemic only' },
+    nihss24:      { hours: 30, label: 'NIHSS documented at 24 h', note: '' },
+    rehabAssess:  { hours: 72, label: 'Rehabilitation assessment', note: '≤ 72 h from stroke unit admission' },
+    fu90:         { days: 120, label: '90-day mRS captured', note: 'clinic visit or phone, by day 120' }
+  };
 
   // Time targets measured from ACTIVATION (T0). Editable — these are prototype defaults, not protocol text.
   const TARGETS = {
@@ -540,20 +638,20 @@
       lvoSuspected = def(f.lvoSuspected, nihss >= 6 && aspects >= 6);
       lastAt = screenAt;
       if (lvoSuspected) {
-        const mctaAt = screenAt + clamp(lognorm(16, 0.4), 8, 45);
+        const mctaAt = screenAt + clamp(lognorm(13, 0.4), 7, 40);
         push('MCTA_RESULT', mctaAt); lastAt = mctaAt;
         lvo = def(f.lvo, R() < (nihss >= 10 ? 0.6 : 0.3));
         if (lvo) {
           circulation = def(f.circulation, R() < 0.85 ? 'anterior' : 'posterior');
           site = circulation === 'anterior' ? pick(['M1', 'M1', 'ICA-T', 'M2', 'Tandem ICA/M1']) : pick(['Basilar', 'Basilar', 'Vertebral V4']);
-          inrConsultAt = mctaAt + clamp(lognorm(5, 0.5), 1, 20);
+          inrConsultAt = mctaAt + clamp(lognorm(4, 0.5), 1, 20);
           push('INR_CONSULT', inrConsultAt);
           let extraAt = inrConsultAt;
           if (circulation === 'anterior' && onsetToT0 + mctaAt >= 360) { ctp = true; extraAt = inrConsultAt + clamp(lognorm(14, 0.4), 6, 35); push('CTP_RESULT', extraAt); }
           if (circulation === 'posterior') { mri = def(f.mri, R() < 0.7); if (mri) { extraAt = inrConsultAt + clamp(lognorm(35, 0.4), 18, 80); push('MRI_RESULT', extraAt); } }
           const inrEval = Math.max(inrConsultAt + rand(3, 10), extraAt - rand(0, 5));
           push('INR_EVAL', inrEval);
-          const mtDec = Math.max(inrEval, extraAt) + rand(2, 8);
+          const mtDec = Math.max(inrEval, extraAt) + rand(1, 6);
           push('MT_DECISION', mtDec); lastAt = mtDec;
           const withinMT = onsetToT0 + mtDec <= (ctp || mri ? 24 * 60 : 6 * 60);
           mtCandidate = def(f.mt, withinMT && aspects >= 6 && R() < 0.85);
@@ -561,9 +659,9 @@
             mt = true;
             push('ANES_CONSULT', mtDec + rand(1, 5));
             push('MT_SET', mtDec + rand(2, 6));
-            const angioAt = mtDec + clamp(lognorm(18, 0.4), 8, 45);
+            const angioAt = mtDec + clamp(lognorm(13, 0.4), 6, 40);
             push('ANGIO_ARRIVE', angioAt);
-            groinAt = angioAt + clamp(lognorm(16, 0.4), 8, 40);
+            groinAt = angioAt + clamp(lognorm(11, 0.4), 6, 30);
             push('GROIN', groinAt);
             recanAt = groinAt + clamp(lognorm(32, 0.5), 10, 120);
             push('RECAN', recanAt);
@@ -573,12 +671,45 @@
         }
       }
     }
-    push('STROKE_UNIT', lastAt + rand(25, 90));
-    const los = clamp(Math.round(lognorm(hemorrhage ? 9 : 5, 0.5)), 1, 40);
-    push('DISCHARGE', los * 1440 + rand(300, 700));
-    const dest = hemorrhage ? pick(['Home', 'Inpatient rehab', 'Inpatient rehab', 'Nursing facility', 'Died', 'Died']) : pick(['Home', 'Home', 'Home', 'Inpatient rehab', 'Inpatient rehab', 'Nursing facility', 'Died']);
+    // ---- course of treatment after the hyperacute phase (minutes from T0; D = 1440) ----
+    const D = 1440;
+    let unitAt;
+    if (mt) { push('ICU_ADMIT', lastAt + rand(20, 60)); unitAt = lastAt + rand(20, 60) + D * rand(0.8, 1.5); }
+    else unitAt = lastAt + rand(25, 90);
+    push('STROKE_UNIT', unitAt);
+    const admitAt = mt ? (lastAt + 40) : unitAt;          // start of inpatient care
+    const los = clamp(Math.round(lognorm(hemorrhage ? 9 : mt ? 7 : 5, 0.5)), 1, 40);
+    const dischargeAt = admitAt + los * D + rand(300, 700);
+    const dest = hemorrhage ? pick(['Home', 'Inpatient rehab', 'Inpatient rehab', 'Nursing facility', 'Died', 'Died']) : pick(['Home', 'Home', 'Home', 'Home', 'Inpatient rehab', 'Inpatient rehab', 'Nursing facility', 'Died']);
+    const died = dest === 'Died';
+    const c = { dysphagia_24h: false, antithrombotic_48h: false, statin: false, af: R() < 0.22, anticoag: false, rehab_72h: false, complication: null, fu90_done: false, fu90_method: null, mrs_discharge: null };
+    if (rtpa || mt) push('CT_24H', admitAt + D * rand(0.85, 1.15));
+    push('NIHSS_24H', admitAt + D * rand(0.9, 1.3));
+    const dysAt = R() < 0.82 ? rand(2, 20) * 60 : rand(26, 70) * 60; c.dysphagia_24h = dysAt <= 24 * 60; push('DYSPHAGIA', admitAt + dysAt);
+    if (!hemorrhage) {
+      const atAt = (rtpa ? 24 * 60 + rand(1, 8) * 60 : rand(2, 30) * 60) + (R() < 0.12 ? 30 * 60 : 0);
+      c.antithrombotic_48h = atAt <= 48 * 60; push('ANTITHROMBOTIC', admitAt + atAt);
+      c.statin = R() < 0.9; if (c.statin) push('STATIN', admitAt + rand(6, 40) * 60);
+      push('ETIOLOGY', admitAt + D * rand(1.5, 4.5));
+      if (c.af) { c.anticoag = R() < 0.8 && !died; if (c.anticoag) push('ANTICOAG', admitAt + D * clamp(rand(3, 14), 3, Math.max(3, los - 1))); }
+    }
+    const compRoll = R();
+    c.complication = compRoll < (rtpa || mt ? 0.07 : 0.02) ? 'Symptomatic ICH' : compRoll < 0.18 ? 'Pneumonia' : compRoll < 0.23 ? 'Urinary tract infection' : null;
+    if (c.complication) push('COMPLICATION', admitAt + (c.complication === 'Symptomatic ICH' ? D * rand(0.3, 1.2) : D * rand(2, 6)));
+    const rehabAt = R() < 0.85 ? rand(12, 70) * 60 : rand(74, 140) * 60; c.rehab_72h = rehabAt <= 72 * 60;
+    if (!died || los > 3) { push('REHAB_ASSESS', admitAt + rehabAt); push('REHAB_START', admitAt + rehabAt + rand(6, 30) * 60); }
+    if (los >= 2 && !died) push('DISCHARGE_PLAN', Math.min(admitAt + D * rand(2, 4), dischargeAt - D * rand(0.8, 1.5)));
+    push('DISCHARGE', dischargeAt);
     let ob = nihss * 0.18 + (age - 65) * 0.03 + (hemorrhage ? 1.0 : 0) + (lvo && !mt ? 1.4 : 0) - (rtpa ? 0.5 : 0) - (mt && ['2b', '2c', '3'].includes(tici) ? 1.2 : 0) + gauss() * 1.2;
-    const mrs90 = dest === 'Died' ? 6 : clamp(Math.round(ob), 0, 5);
+    const mrs90 = died ? 6 : clamp(Math.round(ob), 0, 5);
+    c.mrs_discharge = died ? 6 : clamp(mrs90 + 1, 0, 5);
+    if (!died) {
+      const fuAt = dischargeAt + D * rand(84, 110);
+      const fuDone = R() < 0.88;
+      if (fuDone) { push('FU_90D', fuAt); c.fu90_method = R() < 0.6 ? 'Stroke clinic' : 'Phone'; }
+      c.fu90_done = fuDone; // whether it *will* be done; visibility is decided by the timestamp
+      if (fuDone && R() < 0.7) push('FU_1Y', dischargeAt + D * rand(350, 400));
+    }
 
     return {
       episode_id: 'SFT-' + String(2026000 + i).slice(-4),
@@ -587,7 +718,8 @@
       nihss_admit: nihss,
       imaging: { hemorrhage, aspects, lvo_suspected: lvoSuspected, mcta_done: lvoSuspected, lvo, circulation, occlusion_site: site, ctp_done: ctp, mri_done: mri },
       treatment: { rtpa, rtpa_location: rtpa ? 'CT room' : null, rtpa_agent: rtpa ? pick(['alteplase', 'tenecteplase', 'tenecteplase']) : null, mt_candidate: mtCandidate, mt, tici, neurosurgery: nsx },
-      outcome: { nihss_24h: clamp(Math.round(nihss - (rtpa ? 3 : 0) - (mt ? 5 : 0) + gauss() * 3), 0, 42), mrs_90d: mrs90, discharge_destination: dest, los_days: los },
+      course: c,
+      outcome: { nihss_24h: clamp(Math.round(nihss - (rtpa ? 3 : 0) - (mt ? 5 : 0) + gauss() * 3), 0, 42), mrs_discharge: c.mrs_discharge, mrs_90d: mrs90, discharge_destination: dest, los_days: los },
       events: ev.sort((a, b) => a.ts - b.ts)
     };
   }
@@ -620,7 +752,30 @@
   /* ---------- derived helpers ---------- */
   const evAt = (e, code) => { const x = e.events.find(v => v.code === code); return x ? x.ts : null; };
   const mins = (a, b) => (a && b) ? Math.round((b - a) / 60000) : null;
-  const visibleEvents = e => e.live ? e.events.filter(v => v.ts <= now()) : e.events;
+  const visibleEvents = e => { const t = now(); return e.events.filter(v => v.ts <= t); };
+  const phaseOfCode = code => PHASES.find(p => p.phases.includes(EV[code].phase)) || PHASES[2];
+  // status of each course-of-treatment phase for an episode: done / current / pending, with its span
+  function phaseStatus(e) {
+    const vis = visibleEvents(e); const t = now(); const has = c => vis.some(v => v.code === c);
+    const last = vis[vis.length - 1]; const cur = phaseOfCode(last.code);
+    const starts = { onset: evAt(e, 'ONSET'), hyperacute: evAt(e, 'ACTIVATION'), acute: evAt(e, 'ICU_ADMIT') || evAt(e, 'STROKE_UNIT'), rehab: evAt(e, 'REHAB_ASSESS'), discharge: evAt(e, 'DISCHARGE_PLAN') || evAt(e, 'DISCHARGE'), followup: evAt(e, 'FU_90D') };
+    const ends = { onset: evAt(e, 'ACTIVATION'), hyperacute: evAt(e, 'ICU_ADMIT') || evAt(e, 'STROKE_UNIT'), acute: evAt(e, 'DISCHARGE'), rehab: evAt(e, 'DISCHARGE'), discharge: evAt(e, 'DISCHARGE'), followup: evAt(e, 'FU_1Y') || evAt(e, 'FU_90D') };
+    const died = e.outcome.discharge_destination === 'Died';
+    return PHASES.map((p, i) => {
+      const s = starts[p.id], en = ends[p.id];
+      let st = 'pending';
+      if (s && s <= t) st = (en && en <= t && !(p.id === 'followup' && !evAt(e, 'FU_1Y'))) ? 'done' : 'current';
+      if (p.id === 'followup') { if (has('FU_90D')) st = 'done'; else if (has('DISCHARGE')) st = died ? 'na' : 'current'; else st = 'pending'; }
+      if (p.id === 'rehab' && !s && has('DISCHARGE')) st = 'na';
+      if (p.id === 'discharge' && has('DISCHARGE')) st = 'done';
+      if (p.id === 'acute' && has('DISCHARGE')) st = 'done';
+      if (p.id === 'rehab' && s && has('DISCHARGE')) st = 'done';
+      if (p.id === 'hyperacute' && st === 'current' && (has('STROKE_UNIT') || has('ICU_ADMIT'))) st = 'done';
+      const span = s ? mins(s, (en && en <= t) ? en : t) : null;
+      return { ...p, status: st, start: s, span, current: p.id === cur.id };
+    });
+  }
+  const fmtSpan = m => m == null ? '' : m < 120 ? m + ' min' : m < 2 * 1440 ? (m / 60).toFixed(1) + ' h' : Math.round(m / 1440) + ' d';
   const hasNow = (e, c) => visibleEvents(e).some(v => v.code === c);
   const willHave = (e, c) => e.events.some(v => v.code === c);
   function intervals(e, vis) {
@@ -723,7 +878,7 @@
       if (alert === 'crit') nCrit++; if (alert === 'warn') nWarn++;
       const pct = nt ? Math.min(100, Math.round(100 * nt.elapsed / nt.target)) : 100;
       const win = onsetEl > 360 ? 'crit' : onsetEl > 240 ? 'warn' : 'good';
-      const where = hasNow(e, 'ANGIO_ARRIVE') ? 'Angiosuite 72/2' : hasNow(e, 'STROKE_UNIT') ? 'Stroke unit' : hasNow(e, 'NEU_AT_CT') ? 'CT room · Aussadang 1F' : e.activation.location;
+      const where = hasNow(e, 'STROKE_UNIT') ? 'Stroke unit' : hasNow(e, 'ICU_ADMIT') ? 'Neuro ICU' : hasNow(e, 'ANGIO_ARRIVE') ? 'Angiosuite 72/2' : hasNow(e, 'NEU_AT_CT') ? 'CT room · Aussadang 1F' : e.activation.location;
       const tags = [];
       if (hasNow(e, 'CT_READ') && e.imaging.hemorrhage) tags.push('<span class="pill crit" style="padding:0 7px">Hemorrhage</span>');
       if (hasNow(e, 'RTPA_BOLUS')) tags.push('<span class="pill accent" style="padding:0 7px">rt-PA</span>');
@@ -750,12 +905,64 @@
     });
   }
 
+  /* ---------- INPATIENT BOARD (course of treatment) ---------- */
+  function milestoneChips(e, compact) {
+    const t = now(); const vis = visibleEvents(e); const has = c => vis.some(v => v.code === c);
+    const admit = evAt(e, 'ICU_ADMIT') || evAt(e, 'STROKE_UNIT'); if (!admit || admit > t) return '';
+    const hrs = mins(admit, t) / 60;
+    const items = [
+      ['Dysphagia screen', 'DYSPHAGIA', COURSE_TARGETS.dysphagia.hours, true],
+      ['NIHSS 24 h', 'NIHSS_24H', COURSE_TARGETS.nihss24.hours, true],
+      ['Antithrombotic', 'ANTITHROMBOTIC', COURSE_TARGETS.antithrombotic.hours, !e.imaging.hemorrhage],
+      ['Rehab assessment', 'REHAB_ASSESS', COURSE_TARGETS.rehabAssess.hours, true],
+      ['Etiology work-up', 'ETIOLOGY', 120, !e.imaging.hemorrhage],
+      ['Discharge plan', 'DISCHARGE_PLAN', null, true]
+    ];
+    return items.filter(i => i[3]).map(([l, c, h]) => {
+      let st = 'pending'; if (has(c)) st = 'done'; else if (h != null && hrs > h) st = 'late'; else if (h != null && hrs > h * 0.7) st = 'due';
+      const tipTxt = has(c) ? `${l}: ${fmtDT(evAt(e, c))}` : h != null ? `${l}: target ≤ ${h} h from admission` : `${l}: pending`;
+      return `<span class="ms ${st}" title="${tipTxt}">${st === 'done' ? '✓ ' : st === 'late' ? '! ' : ''}${compact ? l.split(' ')[0] : l}</span>`;
+    }).join('');
+  }
+  function renderInpatient() {
+    const t = now();
+    const rows = COHORT.concat(LIVE).filter(e => { const a = evAt(e, 'ICU_ADMIT') || evAt(e, 'STROKE_UNIT'); const d = evAt(e, 'DISCHARGE'); return a && a <= t && d && d > t; })
+      .sort((a, b) => (evAt(a, 'ICU_ADMIT') || evAt(a, 'STROKE_UNIT')) - (evAt(b, 'ICU_ADMIT') || evAt(b, 'STROKE_UNIT')));
+    const tb = document.querySelector('#inpt-table tbody');
+    let late = 0;
+    tb.innerHTML = rows.map(e => {
+      const vis = visibleEvents(e); const has = c => vis.some(v => v.code === c);
+      const admit = evAt(e, 'ICU_ADMIT') || evAt(e, 'STROKE_UNIT'); const day = Math.floor(mins(admit, t) / 1440) + 1;
+      const ph = phaseStatus(e).find(p => p.current) || phaseStatus(e)[2];
+      const loc = has('REHAB_START') && ph.id === 'rehab' ? 'Stroke unit · rehab programme' : has('STROKE_UNIT') ? 'Stroke unit' : 'Neuro ICU';
+      const chips = milestoneChips(e, true); if (/ms late/.test(chips)) late++;
+      const tx = [e.imaging.hemorrhage ? 'ICH' : null, e.treatment.rtpa ? 'rt-PA' : null, e.treatment.mt ? 'MT · TICI ' + e.treatment.tici : null, e.course.af ? 'AF' : null].filter(Boolean).join(' · ') || 'Conservative';
+      const comp = has('COMPLICATION') ? `<div class="loc" style="color:var(--crit-ink)">${e.course.complication}</div>` : '';
+      const plan = has('DISCHARGE_PLAN') ? `<span class="pill good">Planned · ${e.outcome.discharge_destination}</span>` : day >= 3 ? '<span class="pill warn">Not yet planned</span>' : '<span class="pill neutral">—</span>';
+      return `<tr class="board-row" data-id="${e.episode_id}" tabindex="0" role="button" aria-label="Open ${e.episode_id}">
+        <td><div class="big mono">${e.episode_id}</div><div class="loc">${e.patient.age} ${e.patient.sex} · from ${e.activation.setting}</div></td>
+        <td><span class="stage-chip"><i></i>${ph.label}</span><div class="loc">${loc}</div>${comp}</td>
+        <td class="num">D${day}</td>
+        <td>${tx}</td>
+        <td class="num">${e.nihss_admit} → ${has('NIHSS_24H') ? e.outcome.nihss_24h : '—'}</td>
+        <td><div class="milestones">${chips}</div></td>
+        <td>${plan}</td>
+      </tr>`;
+    }).join('');
+    document.getElementById('inpt-summary').innerHTML = `<span><b>${rows.length}</b> admitted</span><span><b>${rows.filter(e => (phaseStatus(e).find(p => p.current) || {}).id === 'rehab').length}</b> in rehabilitation</span><span><b>${late}</b> with overdue milestones</span>`;
+    tb.querySelectorAll('tr').forEach(tr => {
+      const open = () => { selectPatient(tr.dataset.id); showView('patient'); };
+      tr.addEventListener('click', open);
+      tr.addEventListener('keydown', ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); open(); } });
+    });
+  }
+
   /* ---------- PATIENT JOURNEY ---------- */
   const ALL = LIVE.concat(COHORT.slice().reverse());
   const byId = Object.fromEntries(ALL.map(e => [e.episode_id, e]));
   const sel = document.getElementById('pt-select'), psel = document.getElementById('proto-select');
   const optHtml = '<optgroup label="Active now">' + LIVE.map(e => `<option value="${e.episode_id}">${e.episode_id} · ${e.patient.age}${e.patient.sex} · NIHSS ${e.nihss_admit} · ${e.activation.setting} (active)</option>`).join('') + '</optgroup>' +
-    '<optgroup label="Completed activations">' + COHORT.slice().reverse().slice(0, 60).map(e => `<option value="${e.episode_id}">${e.episode_id} · ${fmtDT(evAt(e, 'ACTIVATION'))} · ${pathwayOf(e)}</option>`).join('') + '</optgroup>';
+    '<optgroup label="Admitted and followed-up activations">' + COHORT.slice().reverse().map(e => `<option value="${e.episode_id}">${e.episode_id} · ${fmtDT(evAt(e, 'ACTIVATION')).split(',')[0]} · ${pathwayOf(e)} · ${(phaseStatus(e).find(p => p.current) || { label: 'closed' }).label}</option>`).join('') + '</optgroup>';
   sel.innerHTML = optHtml; psel.innerHTML = optHtml;
   function selectPatient(id) { sel.value = id; psel.value = id; renderPatient(id); renderFlow(id); }
   sel.addEventListener('change', () => selectPatient(sel.value));
@@ -789,8 +996,68 @@
       ['From', `${e.activation.location} · ${e.activation.caller_role}`],
       ['NIHSS', String(e.nihss_admit)]
     ].map(([k, v]) => `<div><span class="k">${k}</span><span class="val">${esc(v)}</span></div>`).join('');
-    const closed = has('STROKE_UNIT') || !e.live;
+    const closed = has('STROKE_UNIT') || has('ICU_ADMIT') || has('NSX_CONSULT');
     const pw = closed ? pathwayOf(e) : has('RTPA_BOLUS') ? 'rt-PA given · in progress' : 'In progress';
+
+    // course-of-treatment phase strip
+    const PS = phaseStatus(e);
+    document.getElementById('phases').innerHTML = PS.map((p, i) => {
+      const stTxt = { done: 'Complete', current: 'Now', pending: 'Pending', na: p.id === 'followup' ? 'Not applicable' : 'Not required' }[p.status];
+      const span = p.status === 'pending' || p.status === 'na' ? '' : (p.id === 'followup' ? (has('FU_90D') ? 'mRS ' + e.outcome.mrs_90d + ' at 90 d' : 'due ' + fmtDT(addMin(evAt(e, 'DISCHARGE'), 90 * 1440)).split(',')[0]) : fmtSpan(p.span));
+      const started = p.start && p.start <= now() && (p.status === 'done' || p.status === 'current');
+      return `<div class="phase ${p.status}"><span class="pn">${i + 1} · ${p.status === 'current' ? 'in progress' : p.status === 'done' ? 'done' : ''}</span><span class="pl">${p.label}</span><span class="ps">${span || '&nbsp;'}</span><span class="pst">${stTxt}${started ? ' · from ' + fmtDT(p.start).split(',')[0] : ''}</span></div>`;
+    }).join('');
+
+    // course tiles
+    const admit = evAt(e, 'ICU_ADMIT') || evAt(e, 'STROKE_UNIT');
+    const hrsFrom = c => (admit && has(c)) ? Math.round(mins(admit, evAt(e, c)) / 60) : null;
+    const admitted = admit && admit <= now();
+    const cTile = (label, code, target, applies, unit) => {
+      const v = hrsFrom(code);
+      const st = !applies ? 'neutral' : v == null ? (admitted && mins(admit, now()) / 60 > target ? 'crit' : 'neutral') : v <= target ? 'good' : v <= target * 1.25 ? 'warn' : 'crit';
+      const sub = !applies ? 'not applicable' : v == null ? (admitted ? 'pending · target ≤ ' + target + ' ' + unit : 'not yet admitted') : 'target ≤ ' + target + ' ' + unit;
+      return [label, v, sub, st, unit];
+    };
+    const courseTiles = [
+      cTile('Dysphagia screen', 'DYSPHAGIA', COURSE_TARGETS.dysphagia.hours, true, 'h'),
+      cTile('Antithrombotic', 'ANTITHROMBOTIC', COURSE_TARGETS.antithrombotic.hours, !e.imaging.hemorrhage, 'h'),
+      cTile('Rehab assessment', 'REHAB_ASSESS', COURSE_TARGETS.rehabAssess.hours, true, 'h'),
+      ['90-day mRS', has('FU_90D') ? e.outcome.mrs_90d : null, has('FU_90D') ? (e.course.fu90_method + ' · ' + (e.outcome.mrs_90d <= 2 ? 'independent' : 'dependent')) : has('DISCHARGE') ? (e.outcome.discharge_destination === 'Died' ? 'died in hospital' : 'follow-up pending') : 'not yet discharged', has('FU_90D') ? (e.outcome.mrs_90d <= 2 ? 'good' : 'warn') : 'neutral', '']
+    ];
+    document.getElementById('pt-course-tiles').innerHTML = courseTiles.map(([t, v, sub, st, unit]) =>
+      `<div class="tile" style="--tile-status:${col(st)}"><span class="eyebrow">${t}</span><div class="v">${v == null ? '—' : v}<small>${unit}</small></div><div class="t"><span>${sub}</span>${st !== 'neutral' && unit ? `<span class="pill ${st}" style="padding:0 7px">${st === 'good' ? 'Met' : st === 'warn' ? 'Near' : 'Missed'}</span>` : ''}</div></div>`).join('');
+
+    // course stepper (day scale)
+    const coursePath = [];
+    if (e.treatment.mt) coursePath.push('ICU_ADMIT');
+    coursePath.push('STROKE_UNIT');
+    if (e.treatment.rtpa || e.treatment.mt) coursePath.push('CT_24H');
+    coursePath.push('NIHSS_24H', 'DYSPHAGIA');
+    if (!e.imaging.hemorrhage) coursePath.push('ANTITHROMBOTIC', 'STATIN', 'ETIOLOGY');
+    if (e.course.anticoag) coursePath.push('ANTICOAG');
+    if (willHave(e, 'COMPLICATION')) coursePath.push('COMPLICATION');
+    if (willHave(e, 'REHAB_ASSESS')) coursePath.push('REHAB_ASSESS', 'REHAB_START');
+    if (willHave(e, 'DISCHARGE_PLAN')) coursePath.push('DISCHARGE_PLAN');
+    coursePath.push('DISCHARGE');
+    if (e.outcome.discharge_destination !== 'Died') { coursePath.push('FU_90D'); if (willHave(e, 'FU_1Y')) coursePath.push('FU_1Y'); }
+    const courseStatus = code => {
+      const v = hrsFrom(code);
+      if (code === 'DYSPHAGIA') return v <= 24 ? 'good' : v <= 30 ? 'warn' : 'crit';
+      if (code === 'ANTITHROMBOTIC') return v <= 48 ? 'good' : v <= 60 ? 'warn' : 'crit';
+      if (code === 'REHAB_ASSESS') return v <= 72 ? 'good' : v <= 90 ? 'warn' : 'crit';
+      if (code === 'NIHSS_24H') return v <= 30 ? 'good' : 'warn';
+      if (code === 'COMPLICATION') return 'crit';
+      if (code === 'FU_90D') return e.outcome.mrs_90d <= 2 ? 'good' : 'warn';
+      return 'info';
+    };
+    document.getElementById('stepper-course').innerHTML = coursePath.map((code, idx) => {
+      const ts = has(code) ? evAt(e, code) : null;
+      const dayN = ts && admit ? mins(admit, ts) / 1440 : null;
+      const cls = ts ? courseStatus(code) : 'pending';
+      const dayTxt = dayN == null ? '' : dayN < 0 ? '' : (code === 'FU_90D' || code === 'FU_1Y') ? `day ${Math.round(mins(evAt(e, 'DISCHARGE'), ts) / 1440)} after discharge` : `day ${Math.floor(dayN) + 1} · +${Math.round(dayN * 24)} h`;
+      const extra = !ts ? '' : code === 'COMPLICATION' ? e.course.complication : code === 'FU_90D' ? 'mRS ' + e.outcome.mrs_90d : code === 'DISCHARGE' ? e.outcome.discharge_destination : code === 'NIHSS_24H' ? 'NIHSS ' + e.outcome.nihss_24h : '';
+      return `<div class="step ${ts ? '' : 'future'}"><div class="bar ${cls}"><span class="node"></span></div><div class="lbl">${EV[code].label}</div><div class="ts">${ts ? fmtDT(ts) : 'pending'}</div><div class="dur">${extra ? '<b>' + esc(extra) + '</b>' + (dayTxt ? ' · ' : '') : ''}${dayTxt}</div></div>`;
+    }).join('');
     document.getElementById('pt-pills').innerHTML =
       `<span class="pill neutral"><span class="swatch" style="background:${PATH_COLOR[pathwayOf(e)]};margin:0"></span>${pw}</span>` +
       (has('CT_READ') ? `<span class="pill ${e.imaging.hemorrhage ? 'crit' : 'good'}">${e.imaging.hemorrhage ? 'Hemorrhage' : 'No hemorrhage'}</span>` : '') +
@@ -817,7 +1084,7 @@
       if (e.imaging.lvo) { path.push('INR_CONSULT'); if (e.imaging.ctp_done) path.push('CTP_RESULT'); if (e.imaging.mri_done) path.push('MRI_RESULT'); path.push('MT_DECISION'); }
       if (e.treatment.mt) path.push('ANGIO_ARRIVE', 'GROIN', 'RECAN');
     }
-    path.push('STROKE_UNIT', 'DISCHARGE');
+    path.push(e.treatment.mt ? 'ICU_ADMIT' : 'STROKE_UNIT');
     const t0 = evAt(e, 'ACTIVATION');
     const segStatus = (code, fromT0) => {
       switch (code) {
@@ -855,13 +1122,20 @@
       INR_CONSULT: () => `LVO and history reported`,
       MT_DECISION: () => e.treatment.mt ? 'Candidate → proceed' : 'Not a candidate',
       RECAN: () => `TICI ${e.treatment.tici}`,
-      DISCHARGE: () => `${e.outcome.discharge_destination} · LOS ${e.outcome.los_days} d`
+      NIHSS_24H: () => `NIHSS ${e.outcome.nihss_24h}`,
+      DYSPHAGIA: () => e.course.dysphagia_24h ? 'within 24 h' : 'after 24 h',
+      COMPLICATION: () => e.course.complication,
+      ANTICOAG: () => 'atrial fibrillation',
+      DISCHARGE: () => `${e.outcome.discharge_destination} · LOS ${e.outcome.los_days} d · mRS ${e.outcome.mrs_discharge}`,
+      FU_90D: () => `mRS ${e.outcome.mrs_90d} · ${e.course.fu90_method}`
     };
+    const LATE_PHASES = ['Acute care', 'Rehabilitation', 'Discharge', 'Follow-up'];
     let prevTs = null;
     document.getElementById('log').innerHTML = vis.map(v => {
-      const d = prevTs ? `+${mins(prevTs, v.ts)}` : ''; prevTs = v.ts;
+      const dm = prevTs ? mins(prevTs, v.ts) : null; const d = dm == null ? '' : dm >= 1440 ? `+${(dm / 1440).toFixed(1)} d` : dm >= 120 ? `+${(dm / 60).toFixed(1)} h` : `+${dm}`; prevTs = v.ts;
       const ph = EV[v.code].phase; const kind = ph === 'Decision' ? 'decision' : ph === 'Treatment' ? 'tx' : ph === 'Call' || v.code === 'ACTIVATION' ? 'call' : '';
-      return `<div class="log-row"><span class="t">${v.code === 'ONSET' || v.code === 'DISCHARGE' ? fmtDT(v.ts) : fmtT(v.ts)}</span><span class="d ${kind}"></span><div><div class="what">${EV[v.code].label}${detail[v.code] ? ' — ' + esc(detail[v.code]()) : ''}</div><div class="who">${v.by}</div></div><span class="delta">${d}</span></div>`;
+      const late = LATE_PHASES.includes(ph);
+      return `<div class="log-row"><span class="t">${v.code === 'ONSET' || late ? fmtDT(v.ts) : fmtT(v.ts)}</span><span class="d ${kind}"></span><div><div class="what">${EV[v.code].label}${detail[v.code] ? ' — ' + esc(detail[v.code]()) : ''}</div><div class="who">${v.by}</div></div><span class="delta">${d}</span></div>`;
     }).join('');
 
     document.getElementById('pt-decisions').innerHTML = decisionsOf(e).map(d => `<div class="dec-row"><div><div class="q">${d.q}</div>${d.note ? `<div class="crit-note">${d.note}</div>` : ''}</div><span class="pill ${d.k}">${d.a}</span></div>`).join('');
@@ -875,9 +1149,12 @@
       ['Extra imaging', e.imaging.ctp_done && has('CTP_RESULT') ? 'CT perfusion' : e.imaging.mri_done && has('MRI_RESULT') ? 'MRI stroke protocol' : '—'],
       ['IV rt-PA', has('RTPA_DECISION') ? (e.treatment.rtpa ? `${e.treatment.rtpa_agent} at CT room` : 'No') : 'pending'],
       ['Thrombectomy', has('MT_DECISION') ? (e.treatment.mt ? 'Yes' + (has('RECAN') ? ' · TICI ' + e.treatment.tici : '') : 'No') : (e.imaging.lvo && has('MCTA_RESULT') ? 'pending' : '—')],
-      ['NIHSS 24 h', has('STROKE_UNIT') ? e.outcome.nihss_24h : 'pending'],
-      ['Discharge', has('DISCHARGE') ? `${e.outcome.discharge_destination} · LOS ${e.outcome.los_days} d` : 'pending'],
-      ['mRS at 90 d', has('DISCHARGE') ? e.outcome.mrs_90d + (e.outcome.mrs_90d <= 2 ? ' (independent)' : '') : 'pending']
+      ['NIHSS 24 h', has('NIHSS_24H') ? e.outcome.nihss_24h : 'pending'],
+      ['Complication', has('COMPLICATION') ? e.course.complication : (has('DISCHARGE') ? 'None recorded' : '—')],
+      ['Atrial fibrillation', !e.imaging.hemorrhage && has('ETIOLOGY') ? (e.course.af ? (has('ANTICOAG') ? 'Yes · anticoagulated' : 'Yes · not anticoagulated') : 'No') : '—'],
+      ['Secondary prevention', !e.imaging.hemorrhage ? [has('ANTITHROMBOTIC') ? 'antithrombotic' : null, has('STATIN') ? 'statin' : null].filter(Boolean).join(' + ') || 'pending' : '—'],
+      ['Discharge', has('DISCHARGE') ? `${e.outcome.discharge_destination} · LOS ${e.outcome.los_days} d · mRS ${e.outcome.mrs_discharge}` : 'pending'],
+      ['mRS at 90 d', has('FU_90D') ? e.outcome.mrs_90d + (e.outcome.mrs_90d <= 2 ? ' (independent)' : '') + ' · ' + e.course.fu90_method : has('DISCHARGE') ? (e.outcome.discharge_destination === 'Died' ? '—' : 'follow-up pending') : 'pending']
     ].map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join('');
   }
 
@@ -1040,9 +1317,9 @@
       ['Activations', C.length, '', 'info'],
       ['Median activation → CT', median(IV.map(i => i.t0ToCT)), 'min', statusExceed(median(IV.map(i => i.t0ToCT)), TARGETS.t0ToCT.min)],
       ['Median activation → rt-PA', median(dtn), 'min', statusExceed(median(dtn), TARGETS.t0ToNeedle.min)],
-      ['Median mCTA → INR call', median(lvo.map(e => intervals(e).mctaToINR)), 'min', statusExceed(median(lvo.map(e => intervals(e).mctaToINR)), TARGETS.mctaToINR.min)],
       ['Median activation → groin', median(dtg), 'min', statusExceed(median(dtg), TARGETS.t0ToGroin.min)],
-      ['mRS 0–2 at 90 d', share(C.filter(e => e.outcome.mrs_90d <= 2).length, C.length), '%', 'info']
+      ['Median length of stay', median(C.filter(e => hasNow(e, 'DISCHARGE')).map(e => e.outcome.los_days)), 'days', 'info'],
+      ['mRS 0–2 at 90 d', share(C.filter(e => hasNow(e, 'FU_90D') && e.outcome.mrs_90d <= 2).length, C.filter(e => hasNow(e, 'FU_90D')).length), '%', 'info']
     ];
     document.getElementById('kpi-tiles').innerHTML = kpis.map(([t, v, u, st]) =>
       `<div class="tile" style="--tile-status:${col(st)}"><span class="eyebrow">${t}</span><div class="v">${v == null ? '—' : v}<small>${u}</small></div></div>`).join('');
@@ -1050,7 +1327,49 @@
     renderIntervalBars(IV, rtpa, lvo, mt);
     renderSankey(C);
     renderMeasures(C, rtpa, lvo, mt);
+    renderCourse(C);
     bindTips(document.getElementById('view-cohort'));
+  }
+  function renderCourse(C) {
+    const t = now(); const hrs = (e, a, b) => { const x = evAt(e, a), y = evAt(e, b); return x && y ? mins(x, y) / 60 : null; };
+    const dis = C.filter(e => hasNow(e, 'DISCHARGE'));
+    const admitOf = e => evAt(e, 'ICU_ADMIT') || evAt(e, 'STROKE_UNIT');
+    const phases = [
+      ['Onset → activation', median(C.map(e => hrs(e, 'ONSET', 'ACTIVATION'))), 'h', 12],
+      ['Hyperacute (activation → unit/ICU)', median(C.map(e => { const a = admitOf(e); return a ? mins(evAt(e, 'ACTIVATION'), a) / 60 : null; })), 'h', 12],
+      ['Neuro ICU (after MT)', median(C.filter(e => e.treatment.mt).map(e => hrs(e, 'ICU_ADMIT', 'STROKE_UNIT') / 24)), 'd', 14],
+      ['Admission → rehab start', median(dis.map(e => hasNow(e, 'REHAB_START') ? mins(admitOf(e), evAt(e, 'REHAB_START')) / 1440 : null)), 'd', 14],
+      ['Length of stay', median(dis.map(e => e.outcome.los_days)), 'd', 14],
+      ['Discharge → 90-day visit', median(C.filter(e => hasNow(e, 'FU_90D')).map(e => hrs(e, 'DISCHARGE', 'FU_90D') / 24)), 'd', 120]
+    ];
+    document.getElementById('phase-bars').innerHTML = phases.map(([l, v, u, max]) => {
+      const val = v == null ? null : Math.round(v * 10) / 10;
+      return `<div class="hbar" data-tip="<b>${l}</b><br>median ${val == null ? '—' : val + ' ' + u}"><span>${l}</span><div class="track"><div class="fill" style="width:${val == null ? 0 : Math.min(100, 100 * val / max)}%;background:var(--accent)"></div></div><span class="n">${val == null ? '—' : val + ' ' + u}</span></div>`;
+    }).join('');
+    const dests = ['Home', 'Inpatient rehab', 'Nursing facility', 'Died'];
+    document.getElementById('dest-bars').innerHTML = dests.map((d, i) => {
+      const k = dis.filter(e => e.outcome.discharge_destination === d).length; const p = dis.length ? Math.round(100 * k / dis.length) : 0;
+      return `<div class="hbar" data-tip="<b>${d}</b><br>${k} of ${dis.length} discharged"><span>${d}</span><div class="track"><div class="fill" style="width:${p}%;background:${['var(--s1)', 'var(--s2)', 'var(--s3)', 'var(--ink-3)'][i]}"></div></div><span class="n">${k} · ${p}%</span></div>`;
+    }).join('');
+    const pct = (num, den) => den ? Math.round(100 * num / den) : null;
+    const adm = C.filter(e => admitOf(e) && admitOf(e) <= t);
+    const isch = adm.filter(e => !e.imaging.hemorrhage);
+    const af = dis.filter(e => !e.imaging.hemorrhage && e.course.af && e.outcome.discharge_destination !== 'Died');
+    const fuDue = C.filter(e => hasNow(e, 'DISCHARGE') && e.outcome.discharge_destination !== 'Died' && mins(evAt(e, 'DISCHARGE'), t) >= 120 * 1440);
+    const rows = [
+      ['Dysphagia screen ≤ 24 h', pct(adm.filter(e => hasNow(e, 'DYSPHAGIA') && e.course.dysphagia_24h).length, adm.length), 90],
+      ['NIHSS documented at 24 h', pct(adm.filter(e => hasNow(e, 'NIHSS_24H')).length, adm.filter(e => mins(admitOf(e), t) > 30 * 60).length), 95],
+      ['Antithrombotic ≤ 48 h (ischemic)', pct(isch.filter(e => hasNow(e, 'ANTITHROMBOTIC') && e.course.antithrombotic_48h).length, isch.length), 90],
+      ['Statin at discharge (ischemic)', pct(dis.filter(e => !e.imaging.hemorrhage && e.course.statin).length, dis.filter(e => !e.imaging.hemorrhage).length), 90],
+      ['Anticoagulation for AF at discharge', pct(af.filter(e => e.course.anticoag).length, af.length), 85],
+      ['Rehab assessment ≤ 72 h', pct(adm.filter(e => hasNow(e, 'REHAB_ASSESS') && e.course.rehab_72h).length, adm.length), 85],
+      ['Discharge planning documented', pct(dis.filter(e => hasNow(e, 'DISCHARGE_PLAN')).length, dis.filter(e => e.outcome.los_days >= 2 && e.outcome.discharge_destination !== 'Died').length), 90],
+      ['90-day mRS captured (by day 120)', pct(fuDue.filter(e => hasNow(e, 'FU_90D')).length, fuDue.length), 85]
+    ];
+    document.getElementById('course-measures').innerHTML = rows.map(([l, v, goal]) => {
+      const st = v == null ? 'neutral' : v >= goal ? 'good' : v >= goal * 0.85 ? 'warn' : 'crit';
+      return `<div class="hbar" data-tip="<b>${l}</b><br>${v == null ? 'no eligible patients yet' : v + '% · goal ≥ ' + goal + '%'}"><span>${l}</span><div class="track"><div class="fill" style="width:${v || 0}%;background:${col(st)}"></div><div class="target" style="left:${goal}%"></div></div><span class="n">${v == null ? '—' : v + '%'}</span></div>`;
+    }).join('');
   }
   function monthKey(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); }
   function renderDTNChart(rtpa) {
@@ -1096,7 +1415,7 @@
     const cols = [
       { name: 'CT finding', keys: ['Hemorrhage', 'Ischemic · LVO', 'Ischemic · no LVO'], of: e => e.imaging.hemorrhage ? 'Hemorrhage' : e.imaging.lvo ? 'Ischemic · LVO' : 'Ischemic · no LVO' },
       { name: 'Treatment', keys: PATH_ORDER, of: pathwayOf },
-      { name: '90-day mRS', keys: ['mRS 0–2', 'mRS 3–5', 'Died'], of: e => e.outcome.mrs_90d <= 2 ? 'mRS 0–2' : e.outcome.mrs_90d <= 5 ? 'mRS 3–5' : 'Died' }
+      { name: '90-day mRS', keys: ['mRS 0–2', 'mRS 3–5', 'Died', 'FU pending'], of: e => e.outcome.discharge_destination === 'Died' && hasNow(e, 'DISCHARGE') ? 'Died' : hasNow(e, 'FU_90D') ? (e.outcome.mrs_90d <= 2 ? 'mRS 0–2' : 'mRS 3–5') : 'FU pending' }
     ];
     const n = C.length; const usable = H - topY - bottom;
     const nodes = cols.map(c => {
@@ -1164,7 +1483,8 @@
     const clone = JSON.parse(JSON.stringify(ex));
     clone.events = clone.events.map(v => ({ code: v.code, ts: new Date(v.ts).toISOString().replace('Z', '+00:00'), by: v.by }));
     document.getElementById('schema-example').textContent = JSON.stringify(clone, null, 2);
-    document.querySelector('#targets-tbl tbody').innerHTML = Object.values(TARGETS).map(t => `<tr><td>${t.label}</td><td class="num">≤ ${t.min} min</td><td style="color:var(--ink-3)">${t.note}</td></tr>`).join('');
+    document.querySelector('#targets-tbl tbody').innerHTML = Object.values(TARGETS).map(t => `<tr><td>${t.label}</td><td class="num">≤ ${t.min} min</td><td style="color:var(--ink-3)">${t.note}</td></tr>`).join('') +
+      Object.values(COURSE_TARGETS).map(t => `<tr><td>${t.label}</td><td class="num">≤ ${t.hours != null ? t.hours + ' h' : t.days + ' d'}</td><td style="color:var(--ink-3)">${t.note}</td></tr>`).join('');
     document.getElementById('event-codes').innerHTML = EVENTS.map(e => `<div class="map-row"><code>${e[0]}</code><span>${e[1]} <span style="color:var(--ink-3)">· ${e[3]}</span></span></div>`).join('');
     const map = [
       ['episode_id', 'visit_occurrence_id of the activating encounter — pseudonymized'],
@@ -1176,6 +1496,11 @@
       ['events INR_CONSULT, ANES_CONSULT, NSX_CONSULT', 'note / consult order timestamps (95195 call log for INR)'],
       ['events ANGIO_ARRIVE, GROIN, RECAN', 'visit_detail (Angiosuite 72/2) · procedure_occurrence (thrombectomy) · measurement (mTICI)'],
       ['nihss_admit, aspects, tici, mrs_90d', 'measurement with NIHSS / ASPECTS / mTICI / mRS concepts'],
+      ['events ICU_ADMIT, STROKE_UNIT, DISCHARGE', 'visit_detail (ward transfers) · visit_occurrence.visit_end_datetime · discharge_to_concept_id'],
+      ['events DYSPHAGIA, NIHSS_24H, REHAB_ASSESS', 'nursing flowsheet / rehab consult → observation or procedure_occurrence (often only in notes → NLP)'],
+      ['events ANTITHROMBOTIC, STATIN, ANTICOAG', 'drug_exposure (first inpatient administration) · discharge medication list'],
+      ['course.complication', 'condition_occurrence during the visit (sICH from CT_24H report; pneumonia, UTI from diagnoses)'],
+      ['events FU_90D, FU_1Y', 'stroke clinic visit_occurrence + measurement (mRS); phone follow-up → registry table'],
       ['ONSET', 'Stroke registry field (last known well) — usually free text in HIS']
     ];
     document.getElementById('omop-map').innerHTML = map.map(([a, b]) => `<div class="map-row"><code>${a}</code><span>${b}</span></div>`).join('');
@@ -1186,9 +1511,9 @@
     document.getElementById('clock').textContent = now().toLocaleString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Asia/Bangkok' }) + ' ICT';
   }
   tick(); setInterval(tick, 1000);
-  renderBoard(); setInterval(renderBoard, 15000);
+  renderBoard(); renderInpatient(); setInterval(() => { renderBoard(); renderInpatient(); }, 15000);
   renderFunnel();
-  selectPatient(LIVE[1].episode_id);
+  selectPatient(LIVE[6].episode_id);
   renderCohort();
   let initial = 'live';
   try { initial = localStorage.getItem('sft.view') || 'live'; } catch (e) {}
