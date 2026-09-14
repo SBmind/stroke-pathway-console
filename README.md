@@ -22,7 +22,7 @@ It is a single file with no build step and no server.
 
 * Open `index.html` in any modern browser, **or**
 * Publish with GitHub Pages: *Settings → Pages → Deploy from a branch → `main` / root*.
-  The site will be at `https://<your-username>.github.io/<repo-name>/`.
+  The site will be at `https://SBmind.github.io/stroke-pathway-console/`.
 
 Fonts are loaded from Google Fonts; everything else is inline.
 
