@@ -1,0 +1,1199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Prototype dashboard for the Siriraj Stroke Fast Track patient journey (simulated data)">
+</head>
+<body>
+<title>Stroke Pathway Console</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root {
+    color-scheme: light;
+    --ground: #f3f6f8;
+    --surface: #ffffff;
+    --surface-2: #eaf0f4;
+    --ink: #10202b;
+    --ink-2: #4f606c;
+    --ink-3: #8593a0;
+    --line: #d8e0e6;
+    --line-2: #eef2f5;
+    --accent: #0b5e8a;
+    --accent-ink: #ffffff;
+    --accent-soft: #dcecf5;
+    --proto: #4a7a86;            /* the protocol's own teal for decision diamonds */
+    --good: #0ca30c; --good-soft: #e3f5e3; --good-ink: #0a6b0a;
+    --warn: #fab219; --warn-soft: #fff1cf; --warn-ink: #7a5100;
+    --crit: #d03b3b; --crit-soft: #fbe3e3; --crit-ink: #9a2323;
+    --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #4a3aa7;
+    --grid: #e6ebef;
+    --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --shadow: 0 1px 2px rgba(16,32,43,.06), 0 4px 14px rgba(16,32,43,.05);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --ground: #0f161b; --surface: #17222a; --surface-2: #1e2b34;
+      --ink: #eaf0f4; --ink-2: #aebac4; --ink-3: #7c8b97;
+      --line: #2b3a45; --line-2: #22303a;
+      --accent: #5db3e8; --accent-ink: #0b1b26; --accent-soft: #163447;
+      --proto: #5e97a5;
+      --good: #0ca30c; --good-soft: #163d16; --good-ink: #7ddc7d;
+      --warn: #fab219; --warn-soft: #43350f; --warn-ink: #ffd36a;
+      --crit: #d03b3b; --crit-soft: #47201f; --crit-ink: #ff8d8d;
+      --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #9085e9;
+      --grid: #253440;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 4px 14px rgba(0,0,0,.25);
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --ground: #0f161b; --surface: #17222a; --surface-2: #1e2b34;
+    --ink: #eaf0f4; --ink-2: #aebac4; --ink-3: #7c8b97;
+    --line: #2b3a45; --line-2: #22303a;
+    --accent: #5db3e8; --accent-ink: #0b1b26; --accent-soft: #163447;
+    --proto: #5e97a5;
+    --good: #0ca30c; --good-soft: #163d16; --good-ink: #7ddc7d;
+    --warn: #fab219; --warn-soft: #43350f; --warn-ink: #ffd36a;
+    --crit: #d03b3b; --crit-soft: #47201f; --crit-ink: #ff8d8d;
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #9085e9;
+    --grid: #253440;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 4px 14px rgba(0,0,0,.25);
+  }
+
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--ground); color: var(--ink); font-family: var(--sans); font-size: 14px; line-height: 1.45; -webkit-font-smoothing: antialiased; }
+  .wrap { max-width: 1240px; margin: 0 auto; padding-block: 0 48px; padding-inline: 20px; }
+  @media (max-width: 480px) { .wrap { padding-inline: 16px; } }
+
+  .topbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding-block: 18px 12px; border-bottom: 1px solid var(--line); }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .brand-mark { width: 34px; height: 34px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); display: grid; place-items: center; font-family: var(--mono); font-weight: 600; font-size: 13px; letter-spacing: .02em; }
+  .brand h1 { margin: 0; font-size: 17px; font-weight: 600; letter-spacing: -.01em; }
+  .brand .sub { margin: 0; font-size: 12px; color: var(--ink-3); }
+  .clock { font-family: var(--mono); font-size: 12px; color: var(--ink-2); display: flex; gap: 10px; align-items: center; }
+  .clock .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--good); box-shadow: 0 0 0 3px var(--good-soft); }
+  .demo-tag { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--warn-ink); background: var(--warn-soft); padding: 3px 8px; border-radius: 4px; font-weight: 600; }
+  .hotline { font-family: var(--mono); font-size: 12px; color: var(--ink-2); display: flex; gap: 14px; }
+  .hotline b { color: var(--ink); font-weight: 600; }
+
+  .tabs { display: flex; gap: 4px; padding-block: 12px 20px; overflow-x: auto; }
+  .tab { appearance: none; border: 1px solid transparent; background: transparent; color: var(--ink-2); font: inherit; font-weight: 500; padding: 8px 14px; border-radius: 6px; cursor: pointer; white-space: nowrap; }
+  .tab:hover { background: var(--surface-2); }
+  .tab[aria-selected="true"] { background: var(--surface); color: var(--ink); border-color: var(--line); box-shadow: var(--shadow); }
+  .tab:focus-visible, button:focus-visible, select:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .view { display: grid; gap: 16px; }
+
+  .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px 20px; }
+  .panel h2 { margin: 0 0 4px; font-size: 14px; font-weight: 600; }
+  .panel .hint { margin: 0 0 14px; font-size: 12px; color: var(--ink-3); }
+  .grid { display: grid; gap: 16px; }
+  .g-2 { grid-template-columns: 1fr 1fr; }
+  .g-4 { grid-template-columns: repeat(4, 1fr); }
+  .g-6 { grid-template-columns: repeat(6, 1fr); }
+  .g-main { grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr); }
+  .g-proto { grid-template-columns: minmax(0, 3fr) minmax(260px, 2fr); }
+  @media (max-width: 900px) { .g-4, .g-main, .g-proto { grid-template-columns: 1fr 1fr; } .g-6 { grid-template-columns: repeat(3, 1fr); } }
+  @media (max-width: 560px) { .g-2, .g-4, .g-main, .g-proto { grid-template-columns: 1fr; } .g-6 { grid-template-columns: 1fr 1fr; } }
+  .eyebrow { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--ink-3); font-weight: 600; }
+  .mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  .pill { display: inline-flex; align-items: center; gap: 6px; padding: 2px 9px; border-radius: 999px; font-size: 12px; font-weight: 600; line-height: 18px; white-space: nowrap; }
+  .pill.good { background: var(--good-soft); color: var(--good-ink); }
+  .pill.warn { background: var(--warn-soft); color: var(--warn-ink); }
+  .pill.crit { background: var(--crit-soft); color: var(--crit-ink); }
+  .pill.neutral { background: var(--surface-2); color: var(--ink-2); }
+  .pill.accent { background: var(--accent-soft); color: var(--accent); }
+  .pill .ic { font-size: 11px; }
+  .swatch { display: inline-block; width: 10px; height: 10px; border-radius: 2px; vertical-align: -1px; margin-right: 6px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-3); font-weight: 600; padding: 6px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  td { padding: 9px 10px; border-bottom: 1px solid var(--line-2); vertical-align: middle; }
+  tr:last-child td { border-bottom: 0; }
+  .num { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  .tbl-wrap { overflow-x: auto; }
+  select { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 7px 10px; min-width: 220px; max-width: 100%; }
+  .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--ink-2); margin-top: 10px; }
+
+  .tile { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; display: grid; gap: 6px; position: relative; overflow: hidden; }
+  .tile::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--tile-status, var(--line)); }
+  .tile .v { font-size: 26px; font-weight: 600; letter-spacing: -.02em; line-height: 1.1; }
+  .tile .v small { font-size: 13px; font-weight: 500; color: var(--ink-3); margin-left: 3px; }
+  .tile .t { font-size: 12px; color: var(--ink-3); display: flex; justify-content: space-between; gap: 8px; }
+
+  .pt-head { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; align-items: flex-start; }
+  .pt-id { font-size: 22px; font-weight: 600; letter-spacing: -.01em; margin: 0; }
+  .pt-meta { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 8px; }
+  .pt-meta div { display: grid; gap: 2px; }
+  .pt-meta .k { font-size: 11px; color: var(--ink-3); text-transform: uppercase; letter-spacing: .06em; }
+  .pt-meta .val { font-weight: 500; }
+
+  /* team status chips */
+  .team { display: flex; gap: 6px; flex-wrap: wrap; }
+  .tchip { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 4px; border: 1px solid var(--line); color: var(--ink-3); background: var(--surface); font-family: var(--mono); }
+  .tchip.ack { border-color: var(--good); color: var(--good-ink); background: var(--good-soft); }
+  .tchip.wait { border-color: var(--warn); color: var(--warn-ink); background: var(--warn-soft); }
+  .tchip.na { opacity: .45; }
+
+  .stepper { position: relative; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(122px, 1fr); overflow-x: auto; padding-block: 12px 4px; }
+  .step { position: relative; padding: 0 10px 0 0; min-width: 0; }
+  .step .bar { height: 6px; border-radius: 3px; background: var(--line); margin-bottom: 12px; position: relative; }
+  .step .bar.good { background: var(--good); }
+  .step .bar.warn { background: var(--warn); }
+  .step .bar.crit { background: var(--crit); }
+  .step .bar.info { background: var(--accent); }
+  .step .bar.pending { background: repeating-linear-gradient(90deg, var(--line) 0 6px, transparent 6px 10px); }
+  .step .node { position: absolute; left: -1px; top: -5px; width: 16px; height: 16px; border-radius: 50%; background: var(--surface); border: 3px solid var(--accent); }
+  .step.decision .node { border-radius: 3px; transform: rotate(45deg); border-color: var(--proto); }
+  .step.future .node { border-color: var(--line); }
+  .step .lbl { font-size: 12px; font-weight: 600; line-height: 1.25; }
+  .step .ts { font-family: var(--mono); font-size: 12px; color: var(--ink-2); margin-top: 2px; }
+  .step .dur { font-size: 11px; color: var(--ink-3); margin-top: 2px; }
+  .step .dur b { color: var(--ink-2); font-weight: 600; }
+
+  .log-row { display: grid; grid-template-columns: 62px 10px 1fr auto; gap: 10px; align-items: start; padding: 8px 0; border-bottom: 1px solid var(--line-2); }
+  .log-row:last-child { border-bottom: 0; }
+  .log-row .t { font-family: var(--mono); font-size: 12px; color: var(--ink-2); padding-top: 2px; }
+  .log-row .d { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); margin-top: 5px; }
+  .log-row .d.decision { background: var(--proto); border-radius: 2px; transform: rotate(45deg); }
+  .log-row .d.tx { background: var(--s3); }
+  .log-row .d.call { background: var(--s2); }
+  .log-row .what { font-weight: 500; }
+  .log-row .who { font-size: 12px; color: var(--ink-3); }
+  .log-row .delta { font-family: var(--mono); font-size: 11px; color: var(--ink-3); padding-top: 3px; }
+
+  .kv { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; font-size: 13px; }
+  .kv dt { color: var(--ink-3); margin: 0; }
+  .kv dd { margin: 0; font-weight: 500; }
+
+  .board-row td { padding-block: 11px; }
+  .board-row { cursor: pointer; }
+  .board-row:hover td { background: var(--surface-2); }
+  .board-row.alert-crit td { background: var(--crit-soft); }
+  .board-row.alert-warn td { background: var(--warn-soft); }
+  .stage-chip { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; font-size: 12px; }
+  .stage-chip i { width: 8px; height: 8px; border-radius: 2px; background: var(--accent); display: inline-block; flex: none; }
+  .meter { height: 6px; background: var(--line-2); border-radius: 3px; overflow: hidden; min-width: 110px; }
+  .meter b { display: block; height: 100%; border-radius: 3px; background: var(--good); }
+  .meter b.warn { background: var(--warn); } .meter b.crit { background: var(--crit); }
+  .meter-wrap { display: grid; gap: 4px; }
+  .meter-wrap .cap { font-size: 11px; color: var(--ink-3); display: flex; justify-content: space-between; gap: 8px; }
+  .big { font-size: 15px; font-weight: 600; }
+  .board-summary { display: flex; gap: 18px; flex-wrap: wrap; font-size: 13px; color: var(--ink-2); align-items: center; }
+  .board-summary b { color: var(--ink); font-weight: 600; }
+  .loc { font-size: 11px; color: var(--ink-3); }
+
+  /* protocol flowchart */
+  .flow { width: 100%; height: auto; display: block; }
+  .flow text { font-family: var(--sans); font-size: 11px; fill: var(--ink); }
+  .flow .n rect { fill: var(--surface); stroke: var(--line); stroke-width: 1.2; }
+  .flow .n.term rect { fill: var(--surface-2); stroke: var(--surface-2); }
+  .flow .n.dec polygon { fill: var(--proto); stroke: var(--proto); }
+  .flow .n.dec text { fill: #ffffff; font-weight: 600; }
+  .flow .e { fill: none; stroke: var(--ink-3); stroke-width: 1.4; }
+  .flow .e.on { stroke: var(--accent); stroke-width: 3; }
+  .flow .elbl { font-size: 10px; fill: var(--ink-3); }
+  .flow .elbl.on { fill: var(--accent); font-weight: 600; }
+  .flow .n.on rect { stroke: var(--accent); stroke-width: 2.5; }
+  .flow .n.on.term rect { stroke: var(--accent); }
+  .flow .n.on.dec polygon { stroke: var(--accent); stroke-width: 3; }
+  .flow .n.now rect, .flow .n.now.dec polygon { stroke: var(--s2); stroke-width: 3; }
+  .flow .n.off { opacity: .38; }
+  .flow .stamp { font-family: var(--mono); font-size: 9.5px; fill: var(--accent); font-weight: 600; }
+  .flow .stamp.now { fill: var(--s2); }
+  .flow-legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12px; color: var(--ink-2); margin-top: 8px; }
+  .flow-legend i { display: inline-block; width: 18px; height: 3px; vertical-align: middle; margin-right: 6px; border-radius: 2px; }
+  .dec-list { display: grid; gap: 0; }
+  .dec-row { display: grid; grid-template-columns: 1fr auto; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line-2); font-size: 13px; align-items: center; }
+  .dec-row:last-child { border-bottom: 0; }
+  .dec-row .q { font-weight: 500; }
+  .dec-row .crit-note { font-size: 11px; color: var(--ink-3); }
+
+  .chart { width: 100%; height: auto; display: block; }
+  .chart text { font-family: var(--sans); font-size: 11px; fill: var(--ink-3); }
+  .chart text.strong { fill: var(--ink); font-weight: 600; }
+  .chart text.mid { fill: var(--ink-2); }
+  .chart .grid line { stroke: var(--grid); stroke-width: 1; }
+  .tip { position: fixed; z-index: 20; pointer-events: none; background: var(--ink); color: var(--ground); font-size: 12px; padding: 6px 9px; border-radius: 6px; box-shadow: var(--shadow); opacity: 0; transition: opacity .12s; max-width: 260px; }
+  .tip b { font-weight: 600; }
+  .tip.show { opacity: 1; }
+  .hbar { display: grid; grid-template-columns: 190px 1fr 72px; gap: 10px; align-items: center; padding: 5px 0; font-size: 13px; }
+  .hbar .track { height: 12px; background: var(--line-2); border-radius: 3px; position: relative; overflow: hidden; }
+  .hbar .fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 3px; background: var(--s1); }
+  .hbar .target { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--ink); }
+  .hbar .n { font-family: var(--mono); font-size: 12px; text-align: right; color: var(--ink-2); }
+  @media (max-width: 560px) { .hbar { grid-template-columns: 120px 1fr 50px; } }
+
+  pre { margin: 0; font-family: var(--mono); font-size: 12px; line-height: 1.5; background: var(--surface-2); border-radius: 8px; padding: 14px; overflow-x: auto; color: var(--ink); }
+  .schema-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 900px) { .schema-cols { grid-template-columns: 1fr; } }
+  .schema-cols p { margin: 0 0 8px; font-size: 13px; color: var(--ink-2); max-width: 62ch; }
+  .schema-cols h3 { margin: 12px 0 6px; font-size: 13px; }
+  .map-row { display: grid; grid-template-columns: 180px 1fr; gap: 8px; font-size: 12px; padding: 5px 0; border-bottom: 1px solid var(--line-2); }
+  .map-row code { font-family: var(--mono); font-size: 11.5px; color: var(--accent); }
+  .targets-tbl td:first-child { font-weight: 500; }
+  .hidden-view { display: none; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+
+<div class="wrap">
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark">SFT</div>
+      <div>
+        <h1>Stroke Pathway Console</h1>
+        <p class="sub">Siriraj Stroke Fast Track · activation protocol v1.0 (onset &lt; 24 h) · prototype on simulated data</p>
+      </div>
+    </div>
+    <div class="row">
+      <div class="hotline"><span>Fast track <b>99499</b></span><span>INR <b>95195</b></span></div>
+      <span class="demo-tag">Simulated data</span>
+      <div class="clock"><span class="dot"></span><span id="clock">—</span></div>
+    </div>
+  </header>
+
+  <nav class="tabs" role="tablist" aria-label="Views">
+    <button class="tab" role="tab" id="tab-live" aria-selected="true" data-view="live">Live fast-track board</button>
+    <button class="tab" role="tab" id="tab-patient" aria-selected="false" data-view="patient">Patient journey</button>
+    <button class="tab" role="tab" id="tab-protocol" aria-selected="false" data-view="protocol">Protocol map</button>
+    <button class="tab" role="tab" id="tab-cohort" aria-selected="false" data-view="cohort">Cohort &amp; KPIs</button>
+    <button class="tab" role="tab" id="tab-data" aria-selected="false" data-view="data">Data model</button>
+  </nav>
+
+  <!-- LIVE BOARD -->
+  <section class="view" id="view-live" role="tabpanel">
+    <div class="panel">
+      <div class="row" style="justify-content: space-between;">
+        <div>
+          <h2>Active fast-track activations</h2>
+          <p class="hint" style="margin-bottom:0">Every clock runs from the 99499 activation call (T0). Team chips show who has acknowledged: <span class="mono">RAD</span> radiologist, <span class="mono">NEU</span> neurologist, <span class="mono">INR</span> neurointervention, <span class="mono">ANES</span> anesthesia.</p>
+        </div>
+        <div class="board-summary" id="board-summary"></div>
+      </div>
+    </div>
+    <div class="panel" style="padding: 6px 8px;">
+      <div class="tbl-wrap">
+        <table id="board-table">
+          <thead><tr>
+            <th>Patient</th><th>Where</th><th>NIHSS</th><th>Onset → now</th><th>Team</th><th>Protocol step</th><th>Since T0</th><th>Next target</th><th>Alert</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+    <p class="hint" style="margin:0">Click a row to open that patient's journey. Alerts turn amber at 80% of the target and red when it is exceeded. Targets are listed under Data model and are meant to be tuned by the stroke committee.</p>
+  </section>
+
+  <!-- PATIENT JOURNEY -->
+  <section class="view hidden-view" id="view-patient" role="tabpanel">
+    <div class="panel">
+      <div class="pt-head">
+        <div>
+          <div class="row" style="margin-bottom:6px">
+            <span class="eyebrow">Patient</span>
+            <select id="pt-select" aria-label="Select patient"></select>
+          </div>
+          <h2 class="pt-id" id="pt-title">—</h2>
+          <div class="pt-meta" id="pt-meta"></div>
+        </div>
+        <div style="display:grid;gap:8px;justify-items:end">
+          <div id="pt-pills" class="row"></div>
+          <div class="team" id="pt-team"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid g-4" id="pt-tiles"></div>
+
+    <div class="panel">
+      <h2>Fast-track timeline</h2>
+      <p class="hint">Steps follow the activation protocol; diamonds are its decision points. Segments are colored by whether the interval met its target (blue = no time target). Dashed segments have not happened yet.</p>
+      <div class="stepper" id="stepper"></div>
+    </div>
+
+    <div class="grid g-main">
+      <div class="panel">
+        <h2>Event log</h2>
+        <p class="hint">Every timestamp in the record, in order, with the role that recorded it. Δ is minutes since the previous event.</p>
+        <div class="log" id="log"></div>
+      </div>
+      <div class="grid" style="align-content:start">
+        <div class="panel">
+          <h2>Protocol decisions</h2>
+          <p class="hint">The answer at each diamond of the flowchart.</p>
+          <div class="dec-list" id="pt-decisions"></div>
+        </div>
+        <div class="panel">
+          <h2>Clinical summary &amp; outcome</h2>
+          <dl class="kv" id="pt-clinical"></dl>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PROTOCOL MAP -->
+  <section class="view hidden-view" id="view-protocol" role="tabpanel">
+    <div class="grid g-proto">
+      <div class="panel">
+        <div class="row" style="justify-content:space-between;margin-bottom:6px">
+          <div>
+            <h2>Siriraj Stroke Fast Track Activation Protocol</h2>
+            <p class="hint" style="margin:0">The path the selected patient took is highlighted, with the time (minutes after T0) at which each step was reached. The orange node is where an active patient is right now.</p>
+          </div>
+          <select id="proto-select" aria-label="Select patient for protocol map"></select>
+        </div>
+        <svg class="flow" id="flow" viewBox="0 0 720 1010" role="img" aria-label="Protocol flowchart with the patient's path highlighted"></svg>
+        <div class="flow-legend"><span><i style="background:var(--accent)"></i>Path taken</span><span><i style="background:var(--s2)"></i>Current step</span><span><i style="background:var(--ink-3);height:1px"></i>Not taken</span></div>
+      </div>
+      <div class="grid" style="align-content:start">
+        <div class="panel">
+          <h2>Where the cohort goes</h2>
+          <p class="hint">Share of the last 6 months' activations reaching each node.</p>
+          <div id="proto-funnel"></div>
+        </div>
+        <div class="panel">
+          <h2>Protocol roles</h2>
+          <p class="hint">Who does what, as written in v1.0.</p>
+          <dl class="kv">
+            <dt>Activation</dt><dd>Anyone suspecting acute stroke, onset &lt; 24 h, calls 99499</dd>
+            <dt>Radiologist</dt><dd>Receives case, sets CT, joins virtual meeting; after mCTA calls INR (95195) to report LVO and history</dd>
+            <dt>Neurologist</dt><dd>Receives case, evaluates patient at CT room (Aussadang bldg, 1st floor), joins virtual meeting; gives IV rt-PA at CT room; calls anesthesia when MT is planned</dd>
+            <dt>Neurologist + Radiologist</dt><dd>Jointly read mCTA for large-vessel occlusion</dd>
+            <dt>INR</dt><dd>Receives case, evaluates, decides MT candidacy, sets thrombectomy</dd>
+            <dt>Destination</dt><dd>Angiosuite 72/2</dd>
+          </dl>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- COHORT -->
+  <section class="view hidden-view" id="view-cohort" role="tabpanel">
+    <div class="panel">
+      <div class="row" style="justify-content: space-between;">
+        <div>
+          <h2>Cohort performance</h2>
+          <p class="hint" style="margin-bottom:0" id="cohort-hint"></p>
+        </div>
+        <div class="row">
+          <span class="eyebrow">Window</span>
+          <select id="cohort-window" aria-label="Time window" style="min-width:150px">
+            <option value="6">Last 6 months</option>
+            <option value="3">Last 3 months</option>
+            <option value="1">Last month</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="grid g-6" id="kpi-tiles"></div>
+    <div class="grid g-2">
+      <div class="panel">
+        <h2>Activation-to-needle, monthly median</h2>
+        <p class="hint">rt-PA patients. Target line at 45 min (bolus at the CT room); band shows interquartile range.</p>
+        <svg class="chart" id="dtn-chart" viewBox="0 0 560 240" role="img" aria-label="Monthly median activation-to-needle time"></svg>
+      </div>
+      <div class="panel">
+        <h2>Where time is spent</h2>
+        <p class="hint">Median minutes per protocol interval, with target markers.</p>
+        <div id="interval-bars"></div>
+      </div>
+    </div>
+    <div class="grid g-2">
+      <div class="panel">
+        <h2>Pathway flow</h2>
+        <p class="hint">CT finding → reperfusion treatment → 90-day functional outcome (mRS).</p>
+        <svg class="chart" id="sankey" viewBox="0 0 560 320" role="img" aria-label="Pathway flow from CT finding to treatment to outcome"></svg>
+        <div class="legend" id="sankey-legend"></div>
+      </div>
+      <div class="panel">
+        <h2>Protocol adherence</h2>
+        <p class="hint">Share of eligible patients meeting each protocol step or time target.</p>
+        <div id="measure-bars"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- DATA MODEL -->
+  <section class="view hidden-view" id="view-data" role="tabpanel">
+    <div class="panel">
+      <h2>Data model</h2>
+      <p class="hint">The console reads one JSON array of fast-track activations. Replace the built-in generator with a feed from HIS (or an OMOP CDM query) and every view updates.</p>
+      <div class="schema-cols">
+        <div>
+          <p>One record per 99499 activation. Timestamps are ISO 8601 with offset. Events are the only source of truth for intervals; the console derives activation-to-CT, activation-to-needle and the rest, so upstream systems never compute them. Each event carries the role that recorded it, which is what the team chips and the virtual-meeting audit rely on.</p>
+          <pre id="schema-example"></pre>
+        </div>
+        <div>
+          <h3>Time targets (T0 = 99499 call)</h3>
+          <div class="tbl-wrap"><table class="targets-tbl" id="targets-tbl"><thead><tr><th>Interval</th><th class="num">Target</th><th>Note</th></tr></thead><tbody></tbody></table></div>
+          <h3>Event codes</h3>
+          <div id="event-codes"></div>
+          <h3>Suggested HIS / OMOP mapping</h3>
+          <div id="omop-map"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+<div class="tip" id="tip"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  const BOOT_NOW = new Date('2026-09-14T10:42:00+07:00');
+  const PAGE_LOADED = Date.now();
+  const now = () => new Date(BOOT_NOW.getTime() + (Date.now() - PAGE_LOADED));
+
+  /* ---------- event vocabulary, in protocol order ---------- */
+  const EVENTS = [
+    ['ONSET',        'Last known well / onset',                 'Onset',      'Reported by patient or family'],
+    ['ACTIVATION',   'Fast track activated · Tel. 99499',       'Activation', 'Calling clinician'],
+    ['RAD_ACK',      'Radiologist receives case, sets CT',      'Team',       'Radiologist'],
+    ['NEU_ACK',      'Neurologist receives case',               'Team',       'Neurologist'],
+    ['VMEET',        'Virtual meeting joined',                  'Team',       'Radiologist + Neurologist'],
+    ['NEU_AT_CT',    'Neurologist evaluates at CT room',        'Assessment', 'Neurologist · Aussadang 1F'],
+    ['CT_START',     'CT brain NC started',                     'Imaging',    'CT technologist'],
+    ['CT_READ',      'CT brain NC read · hemorrhage?',          'Decision',   'Radiologist'],
+    ['NSX_CONSULT',  'Neurosurgery consulted',                  'Call',       'Neurologist'],
+    ['RTPA_DECISION','IV rt-PA indication decided',             'Decision',   'Neurologist'],
+    ['RTPA_BOLUS',   'IV rt-PA bolus at CT room',               'Treatment',  'Neurologist / nurse'],
+    ['LVO_SCREEN',   'Suspected LVO? (NIHSS ≥ 6, ASPECTS ≥ 6)', 'Decision',   'Neurologist'],
+    ['MCTA_RESULT',  'Multiphase CTA read · LVO?',              'Decision',   'Neurologist + Radiologist'],
+    ['INR_CONSULT',  'INR consulted · Tel. 95195',              'Call',       'Radiologist'],
+    ['CTP_RESULT',   'CT perfusion result',                     'Imaging',    'Radiologist'],
+    ['MRI_RESULT',   'MRI stroke protocol result',              'Imaging',    'Radiologist'],
+    ['INR_EVAL',     'INR receives case and evaluates',         'Assessment', 'INR'],
+    ['MT_DECISION',  'Candidate for MT?',                       'Decision',   'INR'],
+    ['ANES_CONSULT', 'Anesthesia consulted',                    'Call',       'Neurologist'],
+    ['MT_SET',       'INR sets mechanical thrombectomy',        'Team',       'INR'],
+    ['ANGIO_ARRIVE', 'Patient arrives Angiosuite 72/2',         'Transfer',   'Transport / angio nurse'],
+    ['GROIN',        'Groin puncture',                          'Treatment',  'INR'],
+    ['RECAN',        'Recanalization',                          'Treatment',  'INR'],
+    ['STROKE_UNIT',  'Stroke unit admission',                   'Inpatient',  'Stroke unit'],
+    ['DISCHARGE',    'Discharge',                               'Inpatient',  'Ward']
+  ];
+  const EV = Object.fromEntries(EVENTS.map(e => [e[0], { label: e[1], phase: e[2], who: e[3] }]));
+
+  // Time targets measured from ACTIVATION (T0). Editable — these are prototype defaults, not protocol text.
+  const TARGETS = {
+    teamAck:   { min: 10, label: 'Activation → both teams acknowledged', note: 'Radiologist and neurologist receive case' },
+    t0ToCT:    { min: 20, label: 'Activation → CT brain NC started',      note: 'Radiologist sets CT; neurologist meets patient at CT room' },
+    ctRead:    { min: 10, label: 'CT started → CT read (hemorrhage call)', note: 'Virtual meeting' },
+    t0ToNeedle:{ min: 45, label: 'Activation → IV rt-PA bolus',            note: 'Bolus given at CT room' },
+    ctToMCTA:  { min: 25, label: 'CT NC read → multiphase CTA read',      note: 'When NIHSS ≥ 6 and ASPECTS ≥ 6' },
+    mctaToINR: { min: 10, label: 'mCTA read → INR consulted (95195)',      note: 'Radiologist calls INR' },
+    inrToDec:  { min: 20, label: 'INR consulted → MT decision',            note: 'Includes CTP or MRI when required' },
+    t0ToGroin: { min: 90, label: 'Activation → groin puncture',            note: 'Angiosuite 72/2' },
+    groinRecan:{ min: 60, label: 'Groin → recanalization',                 note: '' }
+  };
+
+  /* ---------- seeded synthetic cohort ---------- */
+  function rng(seed) { let s = seed >>> 0; return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; }
+  const R = rng(20260914);
+  const rand = (a, b) => a + (b - a) * R();
+  const gauss = () => { let u = 0, v = 0; while (!u) u = R(); while (!v) v = R(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); };
+  const lognorm = (med, sigma) => med * Math.exp(sigma * gauss());
+  const pick = arr => arr[Math.floor(R() * arr.length)];
+  const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+  const addMin = (d, m) => new Date(d.getTime() + m * 60000);
+  const def = (v, fallback) => v === undefined ? fallback : v;
+
+  function makeEpisode(i, t0, f) {
+    f = f || {};
+    const setting = def(f.setting, R() < 0.7 ? 'ED' : R() < 0.75 ? 'Inpatient ward' : 'OPD');
+    const location = setting === 'ED' ? 'Emergency Dept.' : setting === 'OPD' ? pick(['Neuro OPD', 'Medicine OPD', 'Cardiology OPD']) : pick(['Ward 72/4', 'Ward 84/6', 'Med ICU', 'Cardiac ward', 'Ortho ward 5']);
+    const age = clamp(Math.round(66 + 13 * gauss()), 28, 96);
+    const sex = R() < 0.53 ? 'M' : 'F';
+    const nihss = def(f.nihss, clamp(Math.round(lognorm(8, 0.7)), 1, 32));
+    const onsetToT0 = def(f.onsetMin, clamp(setting === 'ED' ? lognorm(110, 0.6) : lognorm(150, 0.7), 20, 1400));
+    const ev = []; const push = (code, m) => ev.push({ code, ts: addMin(t0, m), by: EV[code].who });
+    const A = {}; // minute offsets from T0 for derived fields
+
+    push('ONSET', -onsetToT0);
+    push('ACTIVATION', 0);
+    const radAck = clamp(lognorm(3, 0.5), 1, 15), neuAck = clamp(lognorm(4, 0.5), 1, 18);
+    push('RAD_ACK', radAck); push('NEU_ACK', neuAck);
+    push('VMEET', Math.max(radAck, neuAck) + rand(1, 4));
+    const ctStart = clamp((f.slow ? 24 : 12) + lognorm(4, 0.6) + (setting !== 'ED' ? 6 : 0), 6, 70);
+    push('NEU_AT_CT', ctStart - rand(1, 5));
+    push('CT_START', ctStart);
+    const ctRead = ctStart + clamp(lognorm(7, 0.4), 3, 20);
+    push('CT_READ', ctRead);
+    const hemorrhage = def(f.hemorrhage, R() < 0.13);
+    const aspects = clamp(Math.round(10 - lognorm(nihss >= 10 ? 1.3 : 0.4, 0.6)), 3, 10);
+
+    let rtpa = false, needleAt = null, lvoSuspected = false, lvo = false, circulation = null, site = null, ctp = false, mri = false, inrConsultAt = null, mt = false, mtCandidate = null, tici = null, groinAt = null, recanAt = null, nsx = false;
+    let lastAt = ctRead;
+    if (hemorrhage) {
+      nsx = true; push('NSX_CONSULT', ctRead + rand(2, 8)); lastAt = ctRead + 10;
+    } else {
+      const rtpaDec = ctRead + rand(1, 5);
+      push('RTPA_DECISION', rtpaDec);
+      const withinWindow = onsetToT0 + rtpaDec <= 270;
+      rtpa = def(f.rtpa, withinWindow && R() > 0.2);
+      if (rtpa) { needleAt = rtpaDec + clamp(lognorm(8, 0.5), 3, 30); push('RTPA_BOLUS', needleAt); }
+      const screenAt = (needleAt || rtpaDec) + rand(1, 4);
+      push('LVO_SCREEN', screenAt);
+      lvoSuspected = def(f.lvoSuspected, nihss >= 6 && aspects >= 6);
+      lastAt = screenAt;
+      if (lvoSuspected) {
+        const mctaAt = screenAt + clamp(lognorm(16, 0.4), 8, 45);
+        push('MCTA_RESULT', mctaAt); lastAt = mctaAt;
+        lvo = def(f.lvo, R() < (nihss >= 10 ? 0.6 : 0.3));
+        if (lvo) {
+          circulation = def(f.circulation, R() < 0.85 ? 'anterior' : 'posterior');
+          site = circulation === 'anterior' ? pick(['M1', 'M1', 'ICA-T', 'M2', 'Tandem ICA/M1']) : pick(['Basilar', 'Basilar', 'Vertebral V4']);
+          inrConsultAt = mctaAt + clamp(lognorm(5, 0.5), 1, 20);
+          push('INR_CONSULT', inrConsultAt);
+          let extraAt = inrConsultAt;
+          if (circulation === 'anterior' && onsetToT0 + mctaAt >= 360) { ctp = true; extraAt = inrConsultAt + clamp(lognorm(14, 0.4), 6, 35); push('CTP_RESULT', extraAt); }
+          if (circulation === 'posterior') { mri = def(f.mri, R() < 0.7); if (mri) { extraAt = inrConsultAt + clamp(lognorm(35, 0.4), 18, 80); push('MRI_RESULT', extraAt); } }
+          const inrEval = Math.max(inrConsultAt + rand(3, 10), extraAt - rand(0, 5));
+          push('INR_EVAL', inrEval);
+          const mtDec = Math.max(inrEval, extraAt) + rand(2, 8);
+          push('MT_DECISION', mtDec); lastAt = mtDec;
+          const withinMT = onsetToT0 + mtDec <= (ctp || mri ? 24 * 60 : 6 * 60);
+          mtCandidate = def(f.mt, withinMT && aspects >= 6 && R() < 0.85);
+          if (mtCandidate) {
+            mt = true;
+            push('ANES_CONSULT', mtDec + rand(1, 5));
+            push('MT_SET', mtDec + rand(2, 6));
+            const angioAt = mtDec + clamp(lognorm(18, 0.4), 8, 45);
+            push('ANGIO_ARRIVE', angioAt);
+            groinAt = angioAt + clamp(lognorm(16, 0.4), 8, 40);
+            push('GROIN', groinAt);
+            recanAt = groinAt + clamp(lognorm(32, 0.5), 10, 120);
+            push('RECAN', recanAt);
+            tici = pick(['2b', '2b', '2c', '3', '3', '3', '2a', '0']);
+            lastAt = recanAt;
+          }
+        }
+      }
+    }
+    push('STROKE_UNIT', lastAt + rand(25, 90));
+    const los = clamp(Math.round(lognorm(hemorrhage ? 9 : 5, 0.5)), 1, 40);
+    push('DISCHARGE', los * 1440 + rand(300, 700));
+    const dest = hemorrhage ? pick(['Home', 'Inpatient rehab', 'Inpatient rehab', 'Nursing facility', 'Died', 'Died']) : pick(['Home', 'Home', 'Home', 'Inpatient rehab', 'Inpatient rehab', 'Nursing facility', 'Died']);
+    let ob = nihss * 0.18 + (age - 65) * 0.03 + (hemorrhage ? 1.0 : 0) + (lvo && !mt ? 1.4 : 0) - (rtpa ? 0.5 : 0) - (mt && ['2b', '2c', '3'].includes(tici) ? 1.2 : 0) + gauss() * 1.2;
+    const mrs90 = dest === 'Died' ? 6 : clamp(Math.round(ob), 0, 5);
+
+    return {
+      episode_id: 'SFT-' + String(2026000 + i).slice(-4),
+      patient: { pseudo_id: 'P' + (100000 + i * 37 % 89999), age, sex },
+      activation: { setting, location, caller_role: setting === 'ED' ? 'ED physician' : setting === 'OPD' ? 'OPD physician' : 'Ward physician', hotline: '99499' },
+      nihss_admit: nihss,
+      imaging: { hemorrhage, aspects, lvo_suspected: lvoSuspected, mcta_done: lvoSuspected, lvo, circulation, occlusion_site: site, ctp_done: ctp, mri_done: mri },
+      treatment: { rtpa, rtpa_location: rtpa ? 'CT room' : null, rtpa_agent: rtpa ? pick(['alteplase', 'tenecteplase', 'tenecteplase']) : null, mt_candidate: mtCandidate, mt, tici, neurosurgery: nsx },
+      outcome: { nihss_24h: clamp(Math.round(nihss - (rtpa ? 3 : 0) - (mt ? 5 : 0) + gauss() * 3), 0, 42), mrs_90d: mrs90, discharge_destination: dest, los_days: los },
+      events: ev.sort((a, b) => a.ts - b.ts)
+    };
+  }
+
+  const COHORT = [];
+  (function build() {
+    const start = new Date('2026-03-14T00:00:00+07:00');
+    let i = 1;
+    for (let d = new Date(start); d < BOOT_NOW; d = addMin(d, 1440)) {
+      const n = R() < 0.3 ? 0 : R() < 0.7 ? 1 : R() < 0.8 ? 2 : 3;
+      for (let k = 0; k < n; k++) {
+        const t0 = addMin(d, Math.floor(rand(0, 1440)));
+        if (t0 < BOOT_NOW) COHORT.push(makeEpisode(i++, t0));
+      }
+    }
+  })();
+
+  // live board: activations currently inside the pathway, each forced onto a different protocol branch
+  const LIVE_SEEDS = [
+    { minsAgo: 9,   setting: 'ED',             nihss: 14 },
+    { minsAgo: 27,  setting: 'ED',             nihss: 18, hemorrhage: false, rtpa: true, lvoSuspected: true, lvo: true, circulation: 'anterior', mt: true, onsetMin: 95 },
+    { minsAgo: 41,  setting: 'Inpatient ward', nihss: 4,  hemorrhage: false, rtpa: false, lvoSuspected: false, slow: true },
+    { minsAgo: 58,  setting: 'ED',             nihss: 22, hemorrhage: true },
+    { minsAgo: 74,  setting: 'ED',             nihss: 11, hemorrhage: false, rtpa: false, lvoSuspected: true, lvo: true, circulation: 'anterior', onsetMin: 420, mt: true },
+    { minsAgo: 96,  setting: 'OPD',            nihss: 9,  hemorrhage: false, rtpa: true, lvoSuspected: true, lvo: true, circulation: 'posterior', mri: true, mt: true, onsetMin: 150 },
+    { minsAgo: 150, setting: 'ED',             nihss: 16, hemorrhage: false, rtpa: true, lvoSuspected: true, lvo: true, circulation: 'anterior', mt: true, onsetMin: 80 }
+  ];
+  const LIVE = LIVE_SEEDS.map((s, k) => { const e = makeEpisode(900 + k, addMin(BOOT_NOW, -s.minsAgo), s); e.live = true; return e; });
+
+  /* ---------- derived helpers ---------- */
+  const evAt = (e, code) => { const x = e.events.find(v => v.code === code); return x ? x.ts : null; };
+  const mins = (a, b) => (a && b) ? Math.round((b - a) / 60000) : null;
+  const visibleEvents = e => e.live ? e.events.filter(v => v.ts <= now()) : e.events;
+  const hasNow = (e, c) => visibleEvents(e).some(v => v.code === c);
+  const willHave = (e, c) => e.events.some(v => v.code === c);
+  function intervals(e, vis) {
+    const t0 = evAt(e, 'ACTIVATION'); const at = c => (vis ? vis.find(v => v.code === c) : e.events.find(v => v.code === c)); const T = c => { const x = at(c); return x ? x.ts : null; };
+    const ack = (T('RAD_ACK') && T('NEU_ACK')) ? Math.max(mins(t0, T('RAD_ACK')), mins(t0, T('NEU_ACK'))) : null;
+    return {
+      onsetToT0: mins(T('ONSET'), t0), teamAck: ack, t0ToCT: mins(t0, T('CT_START')), ctRead: mins(T('CT_START'), T('CT_READ')),
+      t0ToNeedle: mins(t0, T('RTPA_BOLUS')), ctToMCTA: mins(T('CT_READ'), T('MCTA_RESULT')), mctaToINR: mins(T('MCTA_RESULT'), T('INR_CONSULT')),
+      inrToDec: mins(T('INR_CONSULT'), T('MT_DECISION')), t0ToGroin: mins(t0, T('GROIN')), groinRecan: mins(T('GROIN'), T('RECAN')), onsetToGroin: mins(T('ONSET'), T('GROIN'))
+    };
+  }
+  const statusExceed = (v, target) => v == null ? 'neutral' : v <= target ? 'good' : v <= target * 1.25 ? 'warn' : 'crit';
+  const fmtT = d => d ? d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Bangkok' }) : '—';
+  const fmtDT = d => d ? d.toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Bangkok' }) : '—';
+  const fmtDur = m => m == null ? '—' : m < 60 ? m + ' min' : Math.floor(m / 60) + ' h ' + String(m % 60).padStart(2, '0') + ' min';
+  const median = arr => { const a = arr.filter(x => x != null).sort((x, y) => x - y); if (!a.length) return null; const m = Math.floor(a.length / 2); return a.length % 2 ? a[m] : Math.round((a[m - 1] + a[m]) / 2); };
+  const quantile = (arr, q) => { const a = arr.filter(x => x != null).sort((x, y) => x - y); if (!a.length) return null; const p = (a.length - 1) * q, lo = Math.floor(p), hi = Math.ceil(p); return Math.round(a[lo] + (a[hi] - a[lo]) * (p - lo)); };
+  const pathwayOf = e => e.imaging.hemorrhage ? 'Neurosurgery' : e.treatment.rtpa && e.treatment.mt ? 'rt-PA + MT' : e.treatment.rtpa ? 'rt-PA only' : e.treatment.mt ? 'MT only' : 'No reperfusion';
+  const PATH_COLOR = { 'rt-PA only': 'var(--s1)', 'rt-PA + MT': 'var(--s2)', 'MT only': 'var(--s3)', 'No reperfusion': 'var(--s4)', 'Neurosurgery': 'var(--ink-3)' };
+  const PATH_ORDER = ['rt-PA only', 'rt-PA + MT', 'MT only', 'No reperfusion', 'Neurosurgery'];
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const col = s => ({ good: 'var(--good)', warn: 'var(--warn)', crit: 'var(--crit)', neutral: 'var(--line)', info: 'var(--accent)' })[s];
+
+  /* ---------- tooltip ---------- */
+  const tip = document.getElementById('tip');
+  function showTip(html, x, y) { tip.innerHTML = html; tip.classList.add('show'); moveTip(x, y); }
+  function moveTip(x, y) { const w = tip.offsetWidth, h = tip.offsetHeight; tip.style.left = Math.min(x + 14, window.innerWidth - w - 8) + 'px'; tip.style.top = Math.max(8, y - h - 12) + 'px'; }
+  function hideTip() { tip.classList.remove('show'); }
+  function bindTips(root) {
+    root.querySelectorAll('[data-tip]').forEach(el => {
+      el.addEventListener('mouseenter', ev => showTip(el.dataset.tip, ev.clientX, ev.clientY));
+      el.addEventListener('mousemove', ev => moveTip(ev.clientX, ev.clientY));
+      el.addEventListener('mouseleave', hideTip);
+    });
+  }
+
+  /* ---------- tabs ---------- */
+  const VIEWS = ['live', 'patient', 'protocol', 'cohort', 'data'];
+  const tabs = [...document.querySelectorAll('.tab')];
+  function showView(name) {
+    tabs.forEach(t => t.setAttribute('aria-selected', String(t.dataset.view === name)));
+    VIEWS.forEach(v => document.getElementById('view-' + v).classList.toggle('hidden-view', v !== name));
+    try { localStorage.setItem('sft.view', name); } catch (e) {}
+  }
+  tabs.forEach(t => t.addEventListener('click', () => showView(t.dataset.view)));
+
+  /* ---------- protocol step & next target for a (possibly live) episode ---------- */
+  const STEP_LABEL = {
+    ACTIVATION: 'Activated · awaiting teams', RAD_ACK: 'Radiologist on · awaiting neurologist', NEU_ACK: 'Neurologist on · awaiting radiologist', VMEET: 'Virtual meeting · going to CT',
+    NEU_AT_CT: 'Neurologist at CT room', CT_START: 'In CT scanner', CT_READ: 'CT read · rt-PA decision', NSX_CONSULT: 'Neurosurgery consulted', RTPA_DECISION: 'rt-PA decided',
+    RTPA_BOLUS: 'rt-PA running · LVO screen', LVO_SCREEN: 'LVO screen done', MCTA_RESULT: 'mCTA read', INR_CONSULT: 'INR consulted', CTP_RESULT: 'CTP done · INR evaluating',
+    MRI_RESULT: 'MRI done · INR evaluating', INR_EVAL: 'INR evaluating', MT_DECISION: 'MT decided', ANES_CONSULT: 'Anesthesia consulted', MT_SET: 'MT set · transfer to angio',
+    ANGIO_ARRIVE: 'In Angiosuite 72/2', GROIN: 'Thrombectomy in progress', RECAN: 'Recanalized · to stroke unit', STROKE_UNIT: 'Stroke unit', DISCHARGE: 'Discharged'
+  };
+  function currentStep(e) {
+    const vis = visibleEvents(e); let last = vis[vis.length - 1];
+    if (last.code === 'RAD_ACK' && vis.some(v => v.code === 'NEU_ACK')) last = { ...last, code: 'VMEET_PRE' };
+    return last;
+  }
+  function nextTarget(e) {
+    const t0 = evAt(e, 'ACTIVATION'); const t = now(); const el = mins(t0, t); const has = c => hasNow(e, c);
+    const step = (label, key, from) => ({ label, target: TARGETS[key].min, elapsed: from ? mins(evAt(e, from), t) : el });
+    if (!(has('RAD_ACK') && has('NEU_ACK'))) return step('Both teams acknowledge', 'teamAck');
+    if (!has('CT_START')) return step('CT brain NC start', 't0ToCT');
+    if (!has('CT_READ')) return step('CT read', 'ctRead', 'CT_START');
+    if (e.imaging.hemorrhage) return has('STROKE_UNIT') ? null : { label: 'Neurosurgery plan', target: 60, elapsed: mins(evAt(e, 'CT_READ'), t) };
+    if (e.treatment.rtpa && !has('RTPA_BOLUS')) return step('IV rt-PA bolus', 't0ToNeedle');
+    if (!has('LVO_SCREEN')) return { label: 'LVO screen (NIHSS / ASPECTS)', target: 10, elapsed: mins(evAt(e, e.treatment.rtpa ? 'RTPA_BOLUS' : 'CT_READ'), t) };
+    if (e.imaging.lvo_suspected && !has('MCTA_RESULT')) return step('mCTA read', 'ctToMCTA', 'CT_READ');
+    if (e.imaging.lvo && !has('INR_CONSULT')) return step('Call INR 95195', 'mctaToINR', 'MCTA_RESULT');
+    if (e.imaging.lvo && !has('MT_DECISION')) return step('MT decision', 'inrToDec', 'INR_CONSULT');
+    if (e.treatment.mt && !has('GROIN')) return step('Groin puncture', 't0ToGroin');
+    if (e.treatment.mt && !has('RECAN')) return step('Recanalization', 'groinRecan', 'GROIN');
+    if (!has('STROKE_UNIT')) return { label: 'Stroke unit bed', target: 120, elapsed: mins(visibleEvents(e).slice(-1)[0].ts, t) };
+    return null;
+  }
+  function teamChips(e, small) {
+    const t = now(); const has = c => hasNow(e, c);
+    const items = [
+      ['RAD', has('RAD_ACK') ? 'ack' : 'wait', has('RAD_ACK') ? fmtT(evAt(e, 'RAD_ACK')) : 'waiting'],
+      ['NEU', has('NEU_ACK') ? 'ack' : 'wait', has('NEU_ACK') ? fmtT(evAt(e, 'NEU_ACK')) : 'waiting'],
+      ['INR', has('INR_CONSULT') ? 'ack' : (e.imaging.lvo && has('MCTA_RESULT')) ? 'wait' : 'na', has('INR_CONSULT') ? fmtT(evAt(e, 'INR_CONSULT')) : (e.imaging.lvo && has('MCTA_RESULT')) ? 'to call' : 'not needed yet'],
+      ['ANES', has('ANES_CONSULT') ? 'ack' : (e.treatment.mt && has('MT_DECISION')) ? 'wait' : 'na', has('ANES_CONSULT') ? fmtT(evAt(e, 'ANES_CONSULT')) : (e.treatment.mt && has('MT_DECISION')) ? 'to call' : 'not needed yet']
+    ];
+    return items.map(([k, s, d]) => `<span class="tchip ${s}" title="${k}: ${d}">${s === 'ack' ? '✓' : s === 'wait' ? '…' : '·'} ${k}${small ? '' : ' <span style="font-weight:400">' + d + '</span>'}</span>`).join('');
+  }
+
+  /* ---------- LIVE BOARD ---------- */
+  function renderBoard() {
+    const tb = document.querySelector('#board-table tbody');
+    const t = now();
+    const rows = LIVE.slice().sort((a, b) => evAt(b, 'ACTIVATION') - evAt(a, 'ACTIVATION'));
+    let nCrit = 0, nWarn = 0;
+    tb.innerHTML = rows.map(e => {
+      const st = currentStep(e); const nt = nextTarget(e); const sinceT0 = mins(evAt(e, 'ACTIVATION'), t);
+      const onsetEl = mins(evAt(e, 'ONSET'), t);
+      let alert = 'good', alertText = 'On track';
+      if (nt) { const r = nt.elapsed / nt.target; alert = r > 1 ? 'crit' : r > 0.8 ? 'warn' : 'good'; alertText = r > 1 ? 'Over target' : r > 0.8 ? 'Approaching' : 'On track'; }
+      else alertText = 'Admitted';
+      if (alert === 'crit') nCrit++; if (alert === 'warn') nWarn++;
+      const pct = nt ? Math.min(100, Math.round(100 * nt.elapsed / nt.target)) : 100;
+      const win = onsetEl > 360 ? 'crit' : onsetEl > 240 ? 'warn' : 'good';
+      const where = hasNow(e, 'ANGIO_ARRIVE') ? 'Angiosuite 72/2' : hasNow(e, 'STROKE_UNIT') ? 'Stroke unit' : hasNow(e, 'NEU_AT_CT') ? 'CT room · Aussadang 1F' : e.activation.location;
+      const tags = [];
+      if (hasNow(e, 'CT_READ') && e.imaging.hemorrhage) tags.push('<span class="pill crit" style="padding:0 7px">Hemorrhage</span>');
+      if (hasNow(e, 'RTPA_BOLUS')) tags.push('<span class="pill accent" style="padding:0 7px">rt-PA</span>');
+      if (hasNow(e, 'MCTA_RESULT') && e.imaging.lvo) tags.push(`<span class="pill crit" style="padding:0 7px">LVO ${e.imaging.occlusion_site}</span>`);
+      if (hasNow(e, 'MT_DECISION') && e.treatment.mt) tags.push('<span class="pill accent" style="padding:0 7px">MT</span>');
+      return `<tr class="board-row alert-${alert === 'crit' ? 'crit' : alert === 'warn' ? 'warn' : 'none'}" data-id="${e.episode_id}" tabindex="0" role="button" aria-label="Open ${e.episode_id}">
+        <td><div class="big mono">${e.episode_id}</div><div class="loc">${e.patient.age} ${e.patient.sex} · ${e.activation.setting}</div><div class="row" style="gap:4px;margin-top:3px">${tags.join('')}</div></td>
+        <td>${where}<div class="loc">from ${e.activation.location}</div></td>
+        <td class="num">${e.nihss_admit}</td>
+        <td><span class="mono pill ${win}">${fmtDur(onsetEl)}</span></td>
+        <td><div class="team">${teamChips(e, true)}</div></td>
+        <td><span class="stage-chip"><i></i>${STEP_LABEL[st.code] || STEP_LABEL.VMEET}</span><div class="loc mono">${fmtT(st.ts)}</div></td>
+        <td class="num">${fmtDur(sinceT0)}</td>
+        <td>${nt ? `<div class="meter-wrap"><div class="cap"><span>${nt.label}</span><span class="mono">${nt.elapsed} / ${nt.target} min</span></div><div class="meter"><b class="${alert}" style="width:${pct}%"></b></div></div>` : '<span style="color:var(--ink-3)">Pathway complete</span>'}</td>
+        <td><span class="pill ${alert}"><span class="ic">${alert === 'crit' ? '●' : alert === 'warn' ? '◐' : '○'}</span>${alertText}</span></td>
+      </tr>`;
+    }).join('');
+    document.getElementById('board-summary').innerHTML =
+      `<span><b>${rows.length}</b> active</span><span><b>${nWarn}</b> approaching target</span><span><b>${nCrit}</b> over target</span><span><b>${rows.filter(e => e.imaging.lvo && hasNow(e, 'MCTA_RESULT')).length}</b> LVO confirmed</span><span><b>${rows.filter(e => e.treatment.mt && hasNow(e, 'MT_DECISION') && !hasNow(e, 'RECAN')).length}</b> heading to angio</span>`;
+    tb.querySelectorAll('tr').forEach(tr => {
+      const open = () => { selectPatient(tr.dataset.id); showView('patient'); };
+      tr.addEventListener('click', open);
+      tr.addEventListener('keydown', ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); open(); } });
+    });
+  }
+
+  /* ---------- PATIENT JOURNEY ---------- */
+  const ALL = LIVE.concat(COHORT.slice().reverse());
+  const byId = Object.fromEntries(ALL.map(e => [e.episode_id, e]));
+  const sel = document.getElementById('pt-select'), psel = document.getElementById('proto-select');
+  const optHtml = '<optgroup label="Active now">' + LIVE.map(e => `<option value="${e.episode_id}">${e.episode_id} · ${e.patient.age}${e.patient.sex} · NIHSS ${e.nihss_admit} · ${e.activation.setting} (active)</option>`).join('') + '</optgroup>' +
+    '<optgroup label="Completed activations">' + COHORT.slice().reverse().slice(0, 60).map(e => `<option value="${e.episode_id}">${e.episode_id} · ${fmtDT(evAt(e, 'ACTIVATION'))} · ${pathwayOf(e)}</option>`).join('') + '</optgroup>';
+  sel.innerHTML = optHtml; psel.innerHTML = optHtml;
+  function selectPatient(id) { sel.value = id; psel.value = id; renderPatient(id); renderFlow(id); }
+  sel.addEventListener('change', () => selectPatient(sel.value));
+  psel.addEventListener('change', () => selectPatient(psel.value));
+
+  function decisionsOf(e) {
+    const has = c => hasNow(e, c); const iv = intervals(e);
+    const d = [];
+    d.push({ q: 'Hemorrhage on CT NC', a: has('CT_READ') ? (e.imaging.hemorrhage ? 'Yes → consult neurosurgery' : 'No') : 'pending', k: has('CT_READ') ? (e.imaging.hemorrhage ? 'crit' : 'good') : 'neutral' });
+    if (e.imaging.hemorrhage && has('CT_READ')) return d;
+    d.push({ q: 'Indication for IV rt-PA', a: has('RTPA_DECISION') ? (e.treatment.rtpa ? `Yes → ${e.treatment.rtpa_agent} at CT room` : 'No') : 'pending', k: has('RTPA_DECISION') ? (e.treatment.rtpa ? 'good' : 'neutral') : 'neutral', note: `onset → CT read ${fmtDur(iv.onsetToT0 != null && has('CT_READ') ? iv.onsetToT0 + mins(evAt(e, 'ACTIVATION'), evAt(e, 'CT_READ')) : null)} (window 4.5 h)` });
+    d.push({ q: 'Suspected LVO (NIHSS ≥ 6, ASPECTS ≥ 6)', a: has('LVO_SCREEN') ? (e.imaging.lvo_suspected ? 'Yes → multiphase CTA' : 'No → neurologist continues care') : 'pending', k: has('LVO_SCREEN') ? (e.imaging.lvo_suspected ? 'warn' : 'neutral') : 'neutral', note: `NIHSS ${e.nihss_admit} · ASPECTS ${has('CT_READ') ? e.imaging.aspects : '–'}` });
+    if (!e.imaging.lvo_suspected) return d;
+    d.push({ q: 'Large-vessel occlusion on mCTA (joint read)', a: has('MCTA_RESULT') ? (e.imaging.lvo ? `Yes · ${e.imaging.occlusion_site} (${e.imaging.circulation}) → radiologist calls INR` : 'No → neurologist continues care') : 'pending', k: has('MCTA_RESULT') ? (e.imaging.lvo ? 'crit' : 'neutral') : 'neutral' });
+    if (!e.imaging.lvo) return d;
+    if (e.imaging.circulation === 'anterior') d.push({ q: 'Anterior circulation · onset ≥ 6 h', a: has('MCTA_RESULT') ? (e.imaging.ctp_done ? 'Yes → CT perfusion' : 'No → direct INR evaluation') : 'pending', k: 'neutral' });
+    else d.push({ q: 'Posterior circulation', a: has('MCTA_RESULT') ? (e.imaging.mri_done ? 'MRI stroke protocol done' : 'MRI suggested, not done') : 'pending', k: 'neutral' });
+    d.push({ q: 'Candidate for MT (INR)', a: has('MT_DECISION') ? (e.treatment.mt ? 'Yes → anesthesia consulted, MT set, Angiosuite 72/2' : 'No → neurologist continues care') : 'pending', k: has('MT_DECISION') ? (e.treatment.mt ? 'good' : 'neutral') : 'neutral' });
+    return d;
+  }
+
+  function renderPatient(id) {
+    const e = byId[id]; if (!e) return;
+    const vis = visibleEvents(e); const has = c => vis.some(v => v.code === c);
+    const iv = intervals(e, vis);
+    document.getElementById('pt-title').textContent = e.episode_id + (e.live ? ' · active' : '');
+    document.getElementById('pt-meta').innerHTML = [
+      ['Patient', `${e.patient.pseudo_id} · ${e.patient.age} y · ${e.patient.sex}`],
+      ['Onset / LKW', fmtDT(evAt(e, 'ONSET'))],
+      ['Activated (T0)', fmtDT(evAt(e, 'ACTIVATION'))],
+      ['From', `${e.activation.location} · ${e.activation.caller_role}`],
+      ['NIHSS', String(e.nihss_admit)]
+    ].map(([k, v]) => `<div><span class="k">${k}</span><span class="val">${esc(v)}</span></div>`).join('');
+    const closed = has('STROKE_UNIT') || !e.live;
+    const pw = closed ? pathwayOf(e) : has('RTPA_BOLUS') ? 'rt-PA given · in progress' : 'In progress';
+    document.getElementById('pt-pills').innerHTML =
+      `<span class="pill neutral"><span class="swatch" style="background:${PATH_COLOR[pathwayOf(e)]};margin:0"></span>${pw}</span>` +
+      (has('CT_READ') ? `<span class="pill ${e.imaging.hemorrhage ? 'crit' : 'good'}">${e.imaging.hemorrhage ? 'Hemorrhage' : 'No hemorrhage'}</span>` : '') +
+      (has('MCTA_RESULT') ? `<span class="pill ${e.imaging.lvo ? 'crit' : 'good'}">${e.imaging.lvo ? 'LVO · ' + e.imaging.occlusion_site : 'No LVO'}</span>` : '') +
+      (has('CT_READ') ? `<span class="pill neutral">ASPECTS ${e.imaging.aspects}</span>` : '');
+    document.getElementById('pt-team').innerHTML = teamChips(e, false);
+
+    const tiles = [
+      ['Activation → CT', iv.t0ToCT, TARGETS.t0ToCT.min, 'target ≤ 20 min', statusExceed(iv.t0ToCT, TARGETS.t0ToCT.min)],
+      ['Activation → rt-PA', iv.t0ToNeedle, TARGETS.t0ToNeedle.min, !has('RTPA_DECISION') ? (e.imaging.hemorrhage && has('CT_READ') ? 'hemorrhage' : 'decision pending') : e.treatment.rtpa ? 'target ≤ 45 min · CT room' : 'not indicated', e.treatment.rtpa ? statusExceed(iv.t0ToNeedle, TARGETS.t0ToNeedle.min) : 'neutral'],
+      ['mCTA → INR call', iv.mctaToINR, TARGETS.mctaToINR.min, !has('MCTA_RESULT') ? (e.imaging.lvo_suspected || !has('LVO_SCREEN') ? 'awaiting mCTA' : 'LVO not suspected') : e.imaging.lvo ? 'target ≤ 10 min' : 'no LVO', e.imaging.lvo ? statusExceed(iv.mctaToINR, TARGETS.mctaToINR.min) : 'neutral'],
+      ['Activation → groin', iv.t0ToGroin, TARGETS.t0ToGroin.min, !has('MT_DECISION') ? (e.imaging.lvo && has('MCTA_RESULT') ? 'INR deciding' : '—') : e.treatment.mt ? 'target ≤ 90 min' : 'not MT candidate', e.treatment.mt ? statusExceed(iv.t0ToGroin, TARGETS.t0ToGroin.min) : 'neutral']
+    ];
+    document.getElementById('pt-tiles').innerHTML = tiles.map(([t, v, tg, sub, st]) =>
+      `<div class="tile" style="--tile-status:${col(st)}"><span class="eyebrow">${t}</span><div class="v">${v == null ? '—' : v}<small>min</small></div><div class="t"><span>${sub}</span>${st !== 'neutral' ? `<span class="pill ${st}" style="padding:0 7px">${st === 'good' ? 'Met' : st === 'warn' ? 'Near' : 'Missed'}</span>` : ''}</div></div>`).join('');
+
+    // stepper: the protocol path this patient is on (planned path for live patients, so pending steps show)
+    const path = ['ONSET', 'ACTIVATION', 'VMEET', 'CT_START', 'CT_READ'];
+    if (e.imaging.hemorrhage) path.push('NSX_CONSULT');
+    else {
+      path.push('RTPA_DECISION'); if (e.treatment.rtpa) path.push('RTPA_BOLUS');
+      path.push('LVO_SCREEN');
+      if (e.imaging.lvo_suspected) path.push('MCTA_RESULT');
+      if (e.imaging.lvo) { path.push('INR_CONSULT'); if (e.imaging.ctp_done) path.push('CTP_RESULT'); if (e.imaging.mri_done) path.push('MRI_RESULT'); path.push('MT_DECISION'); }
+      if (e.treatment.mt) path.push('ANGIO_ARRIVE', 'GROIN', 'RECAN');
+    }
+    path.push('STROKE_UNIT', 'DISCHARGE');
+    const t0 = evAt(e, 'ACTIVATION');
+    const segStatus = (code, fromT0) => {
+      switch (code) {
+        case 'ACTIVATION': return 'info';
+        case 'VMEET': return statusExceed(fromT0, TARGETS.teamAck.min + 4);
+        case 'CT_START': return statusExceed(fromT0, TARGETS.t0ToCT.min);
+        case 'CT_READ': return statusExceed(iv.ctRead, TARGETS.ctRead.min);
+        case 'RTPA_BOLUS': return statusExceed(fromT0, TARGETS.t0ToNeedle.min);
+        case 'MCTA_RESULT': return statusExceed(iv.ctToMCTA, TARGETS.ctToMCTA.min);
+        case 'INR_CONSULT': return statusExceed(iv.mctaToINR, TARGETS.mctaToINR.min);
+        case 'MT_DECISION': return statusExceed(iv.inrToDec, TARGETS.inrToDec.min);
+        case 'GROIN': return statusExceed(fromT0, TARGETS.t0ToGroin.min);
+        case 'RECAN': return statusExceed(iv.groinRecan, TARGETS.groinRecan.min);
+        default: return 'info';
+      }
+    };
+    document.getElementById('stepper').innerHTML = path.map((code, idx) => {
+      const ts = has(code) ? evAt(e, code) : null;
+      const prev = idx ? (has(path[idx - 1]) ? evAt(e, path[idx - 1]) : null) : null;
+      const fromT0 = ts && t0 && code !== 'ONSET' ? mins(t0, ts) : null;
+      const cls = ts && idx ? segStatus(code, fromT0) : 'pending';
+      const dur = ts && prev ? `<b>+${mins(prev, ts)} min</b>` : '';
+      const fd = fromT0 != null && code !== 'ACTIVATION' ? ` · T0+${fromT0}` : '';
+      const isDec = EV[code].phase === 'Decision';
+      return `<div class="step ${ts ? '' : 'future'} ${isDec ? 'decision' : ''}"><div class="bar ${cls}"><span class="node"></span></div><div class="lbl">${EV[code].label}</div><div class="ts">${ts ? (code === 'DISCHARGE' || code === 'ONSET' ? fmtDT(ts) : fmtT(ts)) : 'pending'}</div><div class="dur">${dur}${fd}</div></div>`;
+    }).join('');
+
+    const detail = {
+      ACTIVATION: () => `${e.activation.caller_role}, ${e.activation.location}`,
+      CT_READ: () => e.imaging.hemorrhage ? 'Intracranial hemorrhage' : `No hemorrhage · ASPECTS ${e.imaging.aspects}`,
+      RTPA_DECISION: () => e.treatment.rtpa ? `Indicated → ${e.treatment.rtpa_agent}` : 'Not indicated',
+      RTPA_BOLUS: () => `${e.treatment.rtpa_agent}, CT room`,
+      LVO_SCREEN: () => e.imaging.lvo_suspected ? `NIHSS ${e.nihss_admit}, ASPECTS ${e.imaging.aspects} → mCTA` : `NIHSS ${e.nihss_admit}, ASPECTS ${e.imaging.aspects} → neurologist care`,
+      MCTA_RESULT: () => e.imaging.lvo ? `${e.imaging.occlusion_site} occlusion, ${e.imaging.circulation} circulation` : 'No large-vessel occlusion',
+      INR_CONSULT: () => `LVO and history reported`,
+      MT_DECISION: () => e.treatment.mt ? 'Candidate → proceed' : 'Not a candidate',
+      RECAN: () => `TICI ${e.treatment.tici}`,
+      DISCHARGE: () => `${e.outcome.discharge_destination} · LOS ${e.outcome.los_days} d`
+    };
+    let prevTs = null;
+    document.getElementById('log').innerHTML = vis.map(v => {
+      const d = prevTs ? `+${mins(prevTs, v.ts)}` : ''; prevTs = v.ts;
+      const ph = EV[v.code].phase; const kind = ph === 'Decision' ? 'decision' : ph === 'Treatment' ? 'tx' : ph === 'Call' || v.code === 'ACTIVATION' ? 'call' : '';
+      return `<div class="log-row"><span class="t">${v.code === 'ONSET' || v.code === 'DISCHARGE' ? fmtDT(v.ts) : fmtT(v.ts)}</span><span class="d ${kind}"></span><div><div class="what">${EV[v.code].label}${detail[v.code] ? ' — ' + esc(detail[v.code]()) : ''}</div><div class="who">${v.by}</div></div><span class="delta">${d}</span></div>`;
+    }).join('');
+
+    document.getElementById('pt-decisions').innerHTML = decisionsOf(e).map(d => `<div class="dec-row"><div><div class="q">${d.q}</div>${d.note ? `<div class="crit-note">${d.note}</div>` : ''}</div><span class="pill ${d.k}">${d.a}</span></div>`).join('');
+
+    document.getElementById('pt-clinical').innerHTML = [
+      ['Setting', `${e.activation.setting} · ${e.activation.location}`],
+      ['Onset → activation', fmtDur(iv.onsetToT0)],
+      ['NIHSS admission', e.nihss_admit],
+      ['ASPECTS', has('CT_READ') ? e.imaging.aspects : 'pending'],
+      ['Vessel', has('MCTA_RESULT') ? (e.imaging.lvo ? `${e.imaging.occlusion_site} (${e.imaging.circulation})` : 'No LVO') : e.imaging.lvo_suspected && has('LVO_SCREEN') ? 'mCTA pending' : '—'],
+      ['Extra imaging', e.imaging.ctp_done && has('CTP_RESULT') ? 'CT perfusion' : e.imaging.mri_done && has('MRI_RESULT') ? 'MRI stroke protocol' : '—'],
+      ['IV rt-PA', has('RTPA_DECISION') ? (e.treatment.rtpa ? `${e.treatment.rtpa_agent} at CT room` : 'No') : 'pending'],
+      ['Thrombectomy', has('MT_DECISION') ? (e.treatment.mt ? 'Yes' + (has('RECAN') ? ' · TICI ' + e.treatment.tici : '') : 'No') : (e.imaging.lvo && has('MCTA_RESULT') ? 'pending' : '—')],
+      ['NIHSS 24 h', has('STROKE_UNIT') ? e.outcome.nihss_24h : 'pending'],
+      ['Discharge', has('DISCHARGE') ? `${e.outcome.discharge_destination} · LOS ${e.outcome.los_days} d` : 'pending'],
+      ['mRS at 90 d', has('DISCHARGE') ? e.outcome.mrs_90d + (e.outcome.mrs_90d <= 2 ? ' (independent)' : '') : 'pending']
+    ].map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join('');
+  }
+
+  /* ---------- PROTOCOL MAP ---------- */
+  // Node geometry mirrors the printed v1.0 flowchart (top-to-bottom, decisions as diamonds).
+  const NODES = {
+    start:  { t: 'term', x: 210, y: 10,  w: 300, h: 40, l: ['Suspected acute stroke in Siriraj', 'onset < 24 h · Tel. 99499'] },
+    rad:    { t: 'box',  x: 30,  y: 90,  w: 240, h: 44, l: ['Radiologist', 'receives case · sets CT · virtual meeting'] },
+    neu:    { t: 'box',  x: 460, y: 90,  w: 220, h: 44, l: ['Neurologist', 'evaluates at CT room (Aussadang 1F)'] },
+    ct:     { t: 'box',  x: 290, y: 170, w: 140, h: 36, l: ['CT brain NC'] },
+    hem:    { t: 'dec',  x: 300, y: 240, w: 120, h: 56, l: ['Hemorrhage'] },
+    nsx:    { t: 'term', x: 40,  y: 248, w: 170, h: 40, l: ['Consult neurosurgery'] },
+    rtpaQ:  { t: 'dec',  x: 460, y: 240, w: 130, h: 56, l: ['Indication for', 'IV rt-PA'] },
+    rtpa:   { t: 'box',  x: 622, y: 248, w: 92,  h: 40, l: ['IV rt-PA', 'at CT room'] },
+    lvoS:   { t: 'dec',  x: 290, y: 340, w: 140, h: 56, l: ['Suspected LVO', 'NIHSS ≥6 · ASPECTS ≥6'] },
+    neuc:   { t: 'term', x: 20,  y: 348, w: 190, h: 40, l: ['Neurologist continues care'] },
+    mcta:   { t: 'box',  x: 290, y: 430, w: 140, h: 36, l: ['Multiphase CTA'] },
+    lvo:    { t: 'dec',  x: 290, y: 500, w: 140, h: 56, l: ['Large-vessel', 'occlusion*'] },
+    inr:    { t: 'box',  x: 290, y: 600, w: 140, h: 40, l: ['Consult INR**', 'Tel. 95195'] },
+    ant:    { t: 'box',  x: 40,  y: 600, w: 150, h: 40, l: ['Anterior circulation'] },
+    post:   { t: 'box',  x: 530, y: 600, w: 160, h: 40, l: ['Posterior circulation'] },
+    onset6: { t: 'dec',  x: 55,  y: 670, w: 120, h: 56, l: ['Onset ≥ 6 h'] },
+    ctp:    { t: 'box',  x: 195, y: 680, w: 80,  h: 36, l: ['CT perfusion'] },
+    inrEv:  { t: 'box',  x: 290, y: 680, w: 140, h: 40, l: ['INR receives case', 'and evaluates'] },
+    mri:    { t: 'box',  x: 530, y: 680, w: 160, h: 40, l: ['Suggest MRI', 'stroke protocol'] },
+    mtQ:    { t: 'dec',  x: 290, y: 780, w: 140, h: 56, l: ['Candidate for MT'] },
+    anes:   { t: 'term', x: 30,  y: 890, w: 180, h: 44, l: ['Neurologist', 'consults anesthesia'] },
+    mtset:  { t: 'term', x: 270, y: 890, w: 180, h: 44, l: ['INR sets mechanical', 'thrombectomy'] },
+    angio:  { t: 'term', x: 510, y: 890, w: 180, h: 44, l: ['Send patient to', 'Angiosuite 72/2'] }
+  };
+  const cx = n => NODES[n].x + NODES[n].w / 2, cy = n => NODES[n].y + NODES[n].h / 2;
+  const top = n => [cx(n), NODES[n].y], bot = n => [cx(n), NODES[n].y + NODES[n].h], left = n => [NODES[n].x, cy(n)], right = n => [NODES[n].x + NODES[n].w, cy(n)];
+  // edges: id, points, label
+  const EDGES = [
+    ['start-rad',  [bot('start'), [cx('start'), 70], [cx('rad'), 70], top('rad')]],
+    ['start-neu',  [bot('start'), [cx('start'), 70], [cx('neu'), 70], top('neu')]],
+    ['rad-ct',     [bot('rad'), [cx('rad'), 188], left('ct')]],
+    ['neu-ct',     [bot('neu'), [cx('neu'), 188], right('ct')]],
+    ['ct-hem',     [bot('ct'), top('hem')]],
+    ['hem-nsx',    [left('hem'), right('nsx')], 'Yes'],
+    ['hem-rtpaQ',  [right('hem'), left('rtpaQ')], 'No'],
+    ['rtpaQ-rtpa', [right('rtpaQ'), left('rtpa')], 'Yes'],
+    ['rtpaQ-lvoS', [bot('rtpaQ'), [cx('rtpaQ'), 320], [cx('lvoS') + 40, 320], [cx('lvoS') + 40, 340]], 'No'],
+    ['rtpa-lvoS',  [bot('rtpa'), [cx('rtpa'), 330], [cx('lvoS') + 55, 330], [cx('lvoS') + 55, 345]]],
+    ['hem-lvoS',   [bot('hem'), top('lvoS')], 'No'],
+    ['lvoS-neuc',  [left('lvoS'), right('neuc')], 'No'],
+    ['lvoS-mcta',  [bot('lvoS'), top('mcta')], 'Yes'],
+    ['mcta-lvo',   [bot('mcta'), top('lvo')]],
+    ['lvo-neuc',   [left('lvo'), [250, cy('lvo')], [250, 408], [cx('neuc') + 30, 408], [cx('neuc') + 30, 388]], 'No'],
+    ['lvo-inr',    [bot('lvo'), top('inr')], 'Yes'],
+    ['inr-ant',    [left('inr'), right('ant')]],
+    ['inr-post',   [right('inr'), left('post')]],
+    ['inr-inrEv',  [bot('inr'), top('inrEv')]],
+    ['ant-onset6', [bot('ant'), top('onset6')]],
+    ['onset6-ctp', [right('onset6'), left('ctp')], 'Yes'],
+    ['onset6-mtQ', [bot('onset6'), [cx('onset6'), 750], [cx('mtQ') - 30, 750], [cx('mtQ') - 30, 780]], 'No'],
+    ['ctp-mtQ',    [bot('ctp'), [cx('ctp'), 745], [cx('mtQ') - 15, 745], [cx('mtQ') - 15, 782]]],
+    ['post-mri',   [bot('post'), top('mri')]],
+    ['mri-mtQ',    [bot('mri'), [cx('mri'), 750], [cx('mtQ') + 30, 750], [cx('mtQ') + 30, 780]]],
+    ['inrEv-mtQ',  [bot('inrEv'), top('mtQ')]],
+    ['mtQ-neuc',   [left('mtQ'), [12, cy('mtQ')], [12, 420], [cx('neuc') - 30, 420], [cx('neuc') - 30, 388]], 'No'],
+    ['mtQ-anes',   [bot('mtQ'), [cx('mtQ'), 866], [cx('anes'), 866], top('anes')], 'Yes'],
+    ['mtQ-mtset',  [bot('mtQ'), top('mtset')]],
+    ['mtQ-angio',  [bot('mtQ'), [cx('mtQ'), 866], [cx('angio'), 866], top('angio')]]
+  ];
+  function pathOf(e) {
+    // nodes visited (with the event whose time stamps the node) and edges taken
+    const has = c => hasNow(e, c); const n = {}, ed = new Set();
+    const stamp = (node, code) => { if (has(code)) n[node] = code; };
+    stamp('start', 'ACTIVATION'); stamp('rad', 'RAD_ACK'); stamp('neu', 'NEU_ACK'); stamp('ct', 'CT_START'); stamp('hem', 'CT_READ');
+    if (has('RAD_ACK')) ed.add('start-rad'); if (has('NEU_ACK')) ed.add('start-neu');
+    if (has('CT_START')) { ed.add('rad-ct'); ed.add('neu-ct'); ed.add('ct-hem'); }
+    if (has('CT_READ')) {
+      if (e.imaging.hemorrhage) { stamp('nsx', 'NSX_CONSULT'); ed.add('hem-nsx'); }
+      else {
+        stamp('rtpaQ', 'RTPA_DECISION'); ed.add('hem-rtpaQ');
+        if (has('RTPA_DECISION')) {
+          if (e.treatment.rtpa) { stamp('rtpa', 'RTPA_BOLUS'); ed.add('rtpaQ-rtpa'); if (has('RTPA_BOLUS')) ed.add('rtpa-lvoS'); }
+          else ed.add('rtpaQ-lvoS');
+        }
+        stamp('lvoS', 'LVO_SCREEN');
+        if (has('LVO_SCREEN')) {
+          if (!e.imaging.lvo_suspected) { n.neuc = 'LVO_SCREEN'; ed.add('lvoS-neuc'); }
+          else { ed.add('lvoS-mcta'); stamp('mcta', 'MCTA_RESULT'); stamp('lvo', 'MCTA_RESULT'); if (has('MCTA_RESULT')) ed.add('mcta-lvo'); }
+        }
+        if (has('MCTA_RESULT') && e.imaging.lvo_suspected) {
+          if (!e.imaging.lvo) { n.neuc = 'MCTA_RESULT'; ed.add('lvo-neuc'); }
+          else {
+            ed.add('lvo-inr'); stamp('inr', 'INR_CONSULT');
+            if (has('INR_CONSULT')) {
+              ed.add('inr-inrEv'); stamp('inrEv', 'INR_EVAL');
+              if (e.imaging.circulation === 'anterior') {
+                ed.add('inr-ant'); n.ant = 'INR_CONSULT'; ed.add('ant-onset6'); n.onset6 = 'INR_CONSULT';
+                if (e.imaging.ctp_done) { ed.add('onset6-ctp'); stamp('ctp', 'CTP_RESULT'); if (has('CTP_RESULT')) ed.add('ctp-mtQ'); } else ed.add('onset6-mtQ');
+              } else {
+                ed.add('inr-post'); n.post = 'INR_CONSULT'; ed.add('post-mri');
+                if (e.imaging.mri_done) { stamp('mri', 'MRI_RESULT'); if (has('MRI_RESULT')) ed.add('mri-mtQ'); } else { n.mri = 'INR_CONSULT'; ed.add('mri-mtQ'); }
+              }
+              if (has('INR_EVAL')) ed.add('inrEv-mtQ');
+              stamp('mtQ', 'MT_DECISION');
+              if (has('MT_DECISION')) {
+                if (e.treatment.mt) { ed.add('mtQ-anes'); ed.add('mtQ-mtset'); ed.add('mtQ-angio'); stamp('anes', 'ANES_CONSULT'); stamp('mtset', 'MT_SET'); stamp('angio', 'ANGIO_ARRIVE'); }
+                else { n.neuc = 'MT_DECISION'; ed.add('mtQ-neuc'); }
+              }
+            }
+          }
+        }
+      }
+    }
+    return { nodes: n, edges: ed };
+  }
+  function renderFlow(id) {
+    const e = byId[id]; if (!e) return;
+    const P = pathOf(e); const t0 = evAt(e, 'ACTIVATION'); const vis = visibleEvents(e); const lastCode = vis[vis.length - 1].code;
+    const nowNode = e.live && !hasNow(e, 'STROKE_UNIT') ? Object.keys(P.nodes).filter(k => P.nodes[k] === lastCode).pop() : null;
+    let s = '<defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--ink-3)"></path></marker><marker id="arrOn" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--accent)"></path></marker></defs>';
+    EDGES.forEach(([id, pts, lbl]) => {
+      const on = P.edges.has(id);
+      s += `<polyline class="e ${on ? 'on' : ''}" points="${pts.map(p => p.join(',')).join(' ')}" marker-end="url(#${on ? 'arrOn' : 'arr'})"></polyline>`;
+      if (lbl) { const [a, b] = [pts[0], pts[1]]; const lx = (a[0] + b[0]) / 2, ly = (a[1] + b[1]) / 2; const horiz = Math.abs(a[1] - b[1]) < 2; s += `<text class="elbl ${on ? 'on' : ''}" x="${lx + (horiz ? 0 : 6)}" y="${ly + (horiz ? -4 : 4)}" text-anchor="${horiz ? 'middle' : 'start'}">${lbl}</text>`; }
+    });
+    Object.entries(NODES).forEach(([k, nd]) => {
+      const on = k in P.nodes; const isNow = k === nowNode; const cls = `n ${nd.t} ${on ? 'on' : 'off'} ${isNow ? 'now' : ''}`;
+      const code = P.nodes[k]; const ts = code ? evAt(e, code) : null; const stampTxt = ts ? (mins(t0, ts) >= 0 ? 'T0+' + mins(t0, ts) : 'T0') : '';
+      const tipTxt = on ? `<b>${nd.l.join(' ')}</b><br>${EV[code].label}<br>${fmtT(ts)} · ${stampTxt}` : `<b>${nd.l.join(' ')}</b><br>not on this patient's path`;
+      s += `<g class="${cls}" data-tip="${esc(tipTxt)}">`;
+      if (nd.t === 'dec') s += `<polygon points="${cx(k)},${nd.y} ${nd.x + nd.w},${cy(k)} ${cx(k)},${nd.y + nd.h} ${nd.x},${cy(k)}"></polygon>`;
+      else s += `<rect x="${nd.x}" y="${nd.y}" width="${nd.w}" height="${nd.h}" rx="${nd.t === 'term' ? 20 : 4}"></rect>`;
+      const lines = nd.l; const lh = 12; const y0 = cy(k) - ((lines.length - 1) * lh) / 2 + 4;
+      lines.forEach((ln, i) => s += `<text x="${cx(k)}" y="${y0 + i * lh}" text-anchor="middle" style="${i === 0 && nd.t !== 'dec' ? 'font-weight:600' : ''}${nd.t === 'dec' && i > 0 ? ';font-size:9px;font-weight:400' : ''}">${ln}</text>`);
+      if (stampTxt) s += `<text class="stamp ${isNow ? 'now' : ''}" x="${nd.x + nd.w}" y="${nd.y - 3}" text-anchor="end">${stampTxt}</text>`;
+      s += '</g>';
+    });
+    s += `<text x="8" y="1000" class="elbl">* Neurologist and radiologist assess together &nbsp; ** Radiologist calls INR to report LVO and history</text>`;
+    const svg = document.getElementById('flow'); svg.innerHTML = s; bindTips(svg);
+  }
+  function renderFunnel() {
+    const C = COHORT; const n = C.length; const pct = k => Math.round(100 * k / n);
+    const rows = [
+      ['Activated (99499)', n], ['CT brain NC', n], ['Hemorrhage → neurosurgery', C.filter(e => e.imaging.hemorrhage).length],
+      ['IV rt-PA at CT room', C.filter(e => e.treatment.rtpa).length], ['Suspected LVO → mCTA', C.filter(e => e.imaging.lvo_suspected).length],
+      ['LVO → INR consulted', C.filter(e => e.imaging.lvo).length], ['CT perfusion (anterior ≥ 6 h)', C.filter(e => e.imaging.ctp_done).length],
+      ['MRI (posterior)', C.filter(e => e.imaging.mri_done).length], ['MT → Angiosuite 72/2', C.filter(e => e.treatment.mt).length]
+    ];
+    document.getElementById('proto-funnel').innerHTML = rows.map(([l, k]) => `<div class="hbar" data-tip="<b>${l}</b><br>${k} of ${n} activations"><span>${l}</span><div class="track"><div class="fill" style="width:${pct(k)}%;background:var(--accent)"></div></div><span class="n">${k} · ${pct(k)}%</span></div>`).join('');
+    bindTips(document.getElementById('proto-funnel'));
+  }
+
+  /* ---------- COHORT ---------- */
+  function renderCohort() {
+    const months = +document.getElementById('cohort-window').value;
+    const from = new Date(BOOT_NOW); from.setMonth(from.getMonth() - months);
+    const C = COHORT.filter(e => evAt(e, 'ACTIVATION') >= from);
+    const IV = C.map(e => intervals(e));
+    const rtpa = C.filter(e => e.treatment.rtpa), mt = C.filter(e => e.treatment.mt), lvo = C.filter(e => e.imaging.lvo);
+    const dtn = rtpa.map(e => intervals(e).t0ToNeedle), dtg = mt.map(e => intervals(e).t0ToGroin);
+    document.getElementById('cohort-hint').textContent = `${C.length} fast-track activations from ${from.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })} to ${BOOT_NOW.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}.`;
+    const share = (a, b) => b ? Math.round(100 * a / b) : null;
+    const kpis = [
+      ['Activations', C.length, '', 'info'],
+      ['Median activation → CT', median(IV.map(i => i.t0ToCT)), 'min', statusExceed(median(IV.map(i => i.t0ToCT)), TARGETS.t0ToCT.min)],
+      ['Median activation → rt-PA', median(dtn), 'min', statusExceed(median(dtn), TARGETS.t0ToNeedle.min)],
+      ['Median mCTA → INR call', median(lvo.map(e => intervals(e).mctaToINR)), 'min', statusExceed(median(lvo.map(e => intervals(e).mctaToINR)), TARGETS.mctaToINR.min)],
+      ['Median activation → groin', median(dtg), 'min', statusExceed(median(dtg), TARGETS.t0ToGroin.min)],
+      ['mRS 0–2 at 90 d', share(C.filter(e => e.outcome.mrs_90d <= 2).length, C.length), '%', 'info']
+    ];
+    document.getElementById('kpi-tiles').innerHTML = kpis.map(([t, v, u, st]) =>
+      `<div class="tile" style="--tile-status:${col(st)}"><span class="eyebrow">${t}</span><div class="v">${v == null ? '—' : v}<small>${u}</small></div></div>`).join('');
+    renderDTNChart(rtpa);
+    renderIntervalBars(IV, rtpa, lvo, mt);
+    renderSankey(C);
+    renderMeasures(C, rtpa, lvo, mt);
+    bindTips(document.getElementById('view-cohort'));
+  }
+  function monthKey(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); }
+  function renderDTNChart(rtpa) {
+    const svg = document.getElementById('dtn-chart'); const groups = {};
+    rtpa.forEach(e => { const k = monthKey(evAt(e, 'ACTIVATION')); (groups[k] = groups[k] || []).push(intervals(e).t0ToNeedle); });
+    const keys = Object.keys(groups).sort();
+    const W = 560, H = 240, L = 40, Rm = 16, T = 16, B = 34, yMax = 80;
+    const x = i => L + (i + 0.5) * (W - L - Rm) / Math.max(1, keys.length), y = v => T + (H - T - B) * (1 - v / yMax);
+    let s = '<g class="grid">';
+    for (let v = 0; v <= yMax; v += 20) s += `<line x1="${L}" x2="${W - Rm}" y1="${y(v)}" y2="${y(v)}"></line><text x="${L - 8}" y="${y(v) + 4}" text-anchor="end">${v}</text>`;
+    s += '</g>';
+    if (keys.length > 1) { const q1 = keys.map((k, i) => `${x(i)},${y(quantile(groups[k], .25))}`), q3 = keys.map((k, i) => `${x(i)},${y(quantile(groups[k], .75))}`).reverse(); s += `<polygon points="${q1.concat(q3).join(' ')}" fill="var(--s1)" opacity=".14"></polygon>`; }
+    s += `<line x1="${L}" x2="${W - Rm}" y1="${y(45)}" y2="${y(45)}" stroke="var(--crit)" stroke-dasharray="4 4" stroke-width="1.5"></line><text x="${W - Rm}" y="${y(45) - 5}" text-anchor="end" class="mid">target 45 min</text>`;
+    s += `<polyline points="${keys.map((k, i) => `${x(i)},${y(median(groups[k]))}`).join(' ')}" fill="none" stroke="var(--s1)" stroke-width="2" stroke-linejoin="round"></polyline>`;
+    keys.forEach((k, i) => {
+      const m = median(groups[k]); const last = i === keys.length - 1;
+      s += `<circle cx="${x(i)}" cy="${y(m)}" r="${last ? 5 : 4}" fill="var(--s1)" stroke="var(--surface)" stroke-width="2" data-tip="<b>${k}</b><br>median ${m} min · IQR ${quantile(groups[k], .25)}–${quantile(groups[k], .75)}<br>n = ${groups[k].length}"></circle>`;
+      s += `<text x="${x(i)}" y="${H - 12}" text-anchor="middle">${new Date(k + '-01T00:00:00').toLocaleDateString('en-GB', { month: 'short' })}</text>`;
+      if (last || i === 0) s += `<text x="${x(i)}" y="${y(m) - 10}" text-anchor="middle" class="strong">${m}</text>`;
+    });
+    svg.innerHTML = s;
+  }
+  function renderIntervalBars(IV, rtpa, lvo, mt) {
+    const rows = [
+      ['Activation → both teams ack', median(IV.map(i => i.teamAck)), TARGETS.teamAck.min, 30],
+      ['Activation → CT start', median(IV.map(i => i.t0ToCT)), TARGETS.t0ToCT.min, 60],
+      ['CT start → CT read', median(IV.map(i => i.ctRead)), TARGETS.ctRead.min, 30],
+      ['Activation → rt-PA bolus', median(rtpa.map(e => intervals(e).t0ToNeedle)), TARGETS.t0ToNeedle.min, 90],
+      ['CT read → mCTA read', median(IV.map(i => i.ctToMCTA)), TARGETS.ctToMCTA.min, 60],
+      ['mCTA read → INR called', median(lvo.map(e => intervals(e).mctaToINR)), TARGETS.mctaToINR.min, 30],
+      ['INR called → MT decision', median(lvo.map(e => intervals(e).inrToDec)), TARGETS.inrToDec.min, 60],
+      ['Activation → groin', median(mt.map(e => intervals(e).t0ToGroin)), TARGETS.t0ToGroin.min, 180],
+      ['Groin → recanalization', median(mt.map(e => intervals(e).groinRecan)), TARGETS.groinRecan.min, 120]
+    ];
+    document.getElementById('interval-bars').innerHTML = rows.map(([l, v, tg, max]) => {
+      const st = statusExceed(v, tg);
+      return `<div class="hbar" data-tip="<b>${l}</b><br>median ${v} min · target ≤ ${tg} min"><span>${l}</span><div class="track"><div class="fill" style="width:${Math.min(100, 100 * v / max)}%;background:${col(st)}"></div><div class="target" style="left:${100 * tg / max}%"></div></div><span class="n">${v == null ? '—' : v + ' min'}</span></div>`;
+    }).join('') + '<div class="legend"><span><span class="swatch" style="background:var(--good)"></span>Met</span><span><span class="swatch" style="background:var(--warn)"></span>Within 25% over</span><span><span class="swatch" style="background:var(--crit)"></span>Missed</span><span><span class="swatch" style="background:var(--ink);width:2px"></span>Target</span></div>';
+  }
+  function renderSankey(C) {
+    const svg = document.getElementById('sankey');
+    const W = 560, H = 320, colX = [8, 250, 492], nodeW = 12, padY = 10, topY = 22, bottom = 8;
+    const cols = [
+      { name: 'CT finding', keys: ['Hemorrhage', 'Ischemic · LVO', 'Ischemic · no LVO'], of: e => e.imaging.hemorrhage ? 'Hemorrhage' : e.imaging.lvo ? 'Ischemic · LVO' : 'Ischemic · no LVO' },
+      { name: 'Treatment', keys: PATH_ORDER, of: pathwayOf },
+      { name: '90-day mRS', keys: ['mRS 0–2', 'mRS 3–5', 'Died'], of: e => e.outcome.mrs_90d <= 2 ? 'mRS 0–2' : e.outcome.mrs_90d <= 5 ? 'mRS 3–5' : 'Died' }
+    ];
+    const n = C.length; const usable = H - topY - bottom;
+    const nodes = cols.map(c => {
+      const counts = c.keys.map(k => C.filter(e => c.of(e) === k).length); const present = counts.filter(Boolean).length;
+      const scale = (usable - padY * (present - 1)) / Math.max(1, counts.reduce((a, b) => a + b, 0));
+      let yy = topY; const out = {};
+      c.keys.forEach((k, i) => { out[k] = { y0: yy, y1: yy + counts[i] * scale, count: counts[i], inY: yy, outY: yy }; if (counts[i]) yy += counts[i] * scale + padY; });
+      return { scale, nodes: out };
+    });
+    let s = '';
+    for (let ci = 0; ci < 2; ci++) {
+      const a = cols[ci], b = cols[ci + 1];
+      a.keys.forEach(ka => b.keys.forEach(kb => {
+        const cnt = C.filter(e => a.of(e) === ka && b.of(e) === kb).length; if (!cnt) return;
+        const na = nodes[ci].nodes[ka], nb = nodes[ci + 1].nodes[kb];
+        const ha = cnt * nodes[ci].scale, hb = cnt * nodes[ci + 1].scale;
+        const x0 = colX[ci] + nodeW, x1 = colX[ci + 1], ya = na.outY, yb = nb.inY, cxm = (x0 + x1) / 2;
+        const color = ci === 0 ? PATH_COLOR[kb] : PATH_COLOR[ka];
+        s += `<path d="M${x0},${ya} C${cxm},${ya} ${cxm},${yb} ${x1},${yb} L${x1},${yb + hb} C${cxm},${yb + hb} ${cxm},${ya + ha} ${x0},${ya + ha} Z" fill="${color}" opacity=".35" data-tip="<b>${ka} → ${kb}</b><br>${cnt} patients (${Math.round(100 * cnt / n)}%)"></path>`;
+        na.outY += ha; nb.inY += hb;
+      }));
+    }
+    cols.forEach((c, ci) => {
+      s += `<text x="${ci === 2 ? colX[ci] + nodeW : colX[ci]}" y="12" class="strong" text-anchor="${ci === 2 ? 'end' : 'start'}">${c.name}</text>`;
+      c.keys.forEach(k => {
+        const nd = nodes[ci].nodes[k]; if (!nd.count) return;
+        const fill = ci === 1 ? PATH_COLOR[k] : 'var(--ink-2)';
+        s += `<rect x="${colX[ci]}" y="${nd.y0}" width="${nodeW}" height="${Math.max(1, nd.y1 - nd.y0)}" rx="2" fill="${fill}" data-tip="<b>${k}</b><br>${nd.count} patients (${Math.round(100 * nd.count / n)}%)"></rect>`;
+        const ty = (nd.y0 + nd.y1) / 2 + 4;
+        if (ci === 2) s += `<text x="${colX[ci] - 6}" y="${ty}" text-anchor="end" class="mid">${k} · ${nd.count}</text>`;
+        else s += `<text x="${colX[ci] + nodeW + 6}" y="${ty}" class="mid">${k} · ${nd.count}</text>`;
+      });
+    });
+    svg.innerHTML = s;
+    document.getElementById('sankey-legend').innerHTML = PATH_ORDER.map(k => `<span><span class="swatch" style="background:${PATH_COLOR[k]}"></span>${k}</span>`).join('');
+  }
+  function renderMeasures(C, rtpa, lvo, mt) {
+    const pct = (num, den) => den ? Math.round(100 * num / den) : null;
+    const isch = C.filter(e => !e.imaging.hemorrhage);
+    const screenPos = isch.filter(e => e.nihss_admit >= 6 && e.imaging.aspects >= 6);
+    const antLate = lvo.filter(e => e.imaging.circulation === 'anterior' && intervals(e).onsetToT0 + mins(evAt(e, 'ACTIVATION'), evAt(e, 'MCTA_RESULT')) >= 360);
+    const post = lvo.filter(e => e.imaging.circulation === 'posterior');
+    const rows = [
+      ['Both teams acknowledge ≤ 10 min', pct(C.filter(e => intervals(e).teamAck <= 10).length, C.length), 90],
+      ['Activation → CT ≤ 20 min', pct(C.filter(e => intervals(e).t0ToCT <= 20).length, C.length), 75],
+      ['rt-PA bolus given at CT room', pct(rtpa.filter(e => e.treatment.rtpa_location === 'CT room').length, rtpa.length), 95],
+      ['Activation → rt-PA ≤ 45 min', pct(rtpa.filter(e => intervals(e).t0ToNeedle <= 45).length, rtpa.length), 75],
+      ['mCTA when NIHSS ≥ 6 & ASPECTS ≥ 6', pct(screenPos.filter(e => e.imaging.mcta_done).length, screenPos.length), 95],
+      ['INR called ≤ 10 min after mCTA (LVO)', pct(lvo.filter(e => intervals(e).mctaToINR <= 10).length, lvo.length), 85],
+      ['CTP for anterior LVO with onset ≥ 6 h', pct(antLate.filter(e => e.imaging.ctp_done).length, antLate.length), 90],
+      ['MRI for posterior LVO', pct(post.filter(e => e.imaging.mri_done).length, post.length), 70],
+      ['Activation → groin ≤ 90 min', pct(mt.filter(e => intervals(e).t0ToGroin <= 90).length, mt.length), 60],
+      ['TICI 2b–3 after MT', pct(mt.filter(e => ['2b', '2c', '3'].includes(e.treatment.tici)).length, mt.length), 80]
+    ];
+    document.getElementById('measure-bars').innerHTML = rows.map(([l, v, goal]) => {
+      const st = v == null ? 'neutral' : v >= goal ? 'good' : v >= goal * 0.85 ? 'warn' : 'crit';
+      return `<div class="hbar" data-tip="<b>${l}</b><br>${v == null ? 'no eligible patients' : v + '% · goal ≥ ' + goal + '%'}"><span>${l}</span><div class="track"><div class="fill" style="width:${v || 0}%;background:${col(st)}"></div><div class="target" style="left:${goal}%"></div></div><span class="n">${v == null ? '—' : v + '%'}</span></div>`;
+    }).join('');
+  }
+  document.getElementById('cohort-window').addEventListener('change', renderCohort);
+
+  /* ---------- DATA MODEL ---------- */
+  (function renderData() {
+    const ex = COHORT.find(e => e.treatment.rtpa && e.treatment.mt && e.imaging.ctp_done) || COHORT.find(e => e.treatment.mt) || COHORT[0];
+    const clone = JSON.parse(JSON.stringify(ex));
+    clone.events = clone.events.map(v => ({ code: v.code, ts: new Date(v.ts).toISOString().replace('Z', '+00:00'), by: v.by }));
+    document.getElementById('schema-example').textContent = JSON.stringify(clone, null, 2);
+    document.querySelector('#targets-tbl tbody').innerHTML = Object.values(TARGETS).map(t => `<tr><td>${t.label}</td><td class="num">≤ ${t.min} min</td><td style="color:var(--ink-3)">${t.note}</td></tr>`).join('');
+    document.getElementById('event-codes').innerHTML = EVENTS.map(e => `<div class="map-row"><code>${e[0]}</code><span>${e[1]} <span style="color:var(--ink-3)">· ${e[3]}</span></span></div>`).join('');
+    const map = [
+      ['episode_id', 'visit_occurrence_id of the activating encounter — pseudonymized'],
+      ['activation.* (99499 call)', 'Not in HIS: stroke fast-track call log / paging system → custom table'],
+      ['events RAD_ACK, NEU_ACK, VMEET', 'Paging / virtual-meeting join logs → custom table (needed for team-response KPIs)'],
+      ['events CT_START, MCTA_RESULT, CTP_RESULT, MRI_RESULT', 'procedure_occurrence (CT head NC, CTA, CTP, MRI) · RIS exam-start and report-verified timestamps'],
+      ['imaging.hemorrhage, lvo, occlusion_site', 'condition_occurrence or measurement from structured/NLP radiology report'],
+      ['events RTPA_BOLUS', 'drug_exposure (alteplase / tenecteplase) · drug_exposure_start_datetime · visit_detail = CT room'],
+      ['events INR_CONSULT, ANES_CONSULT, NSX_CONSULT', 'note / consult order timestamps (95195 call log for INR)'],
+      ['events ANGIO_ARRIVE, GROIN, RECAN', 'visit_detail (Angiosuite 72/2) · procedure_occurrence (thrombectomy) · measurement (mTICI)'],
+      ['nihss_admit, aspects, tici, mrs_90d', 'measurement with NIHSS / ASPECTS / mTICI / mRS concepts'],
+      ['ONSET', 'Stroke registry field (last known well) — usually free text in HIS']
+    ];
+    document.getElementById('omop-map').innerHTML = map.map(([a, b]) => `<div class="map-row"><code>${a}</code><span>${b}</span></div>`).join('');
+  })();
+
+  /* ---------- clock & boot ---------- */
+  function tick() {
+    document.getElementById('clock').textContent = now().toLocaleString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Asia/Bangkok' }) + ' ICT';
+  }
+  tick(); setInterval(tick, 1000);
+  renderBoard(); setInterval(renderBoard, 15000);
+  renderFunnel();
+  selectPatient(LIVE[1].episode_id);
+  renderCohort();
+  let initial = 'live';
+  try { initial = localStorage.getItem('sft.view') || 'live'; } catch (e) {}
+  showView(VIEWS.includes(initial) ? initial : 'live');
+})();
+</script>
+</body>
+</html>
